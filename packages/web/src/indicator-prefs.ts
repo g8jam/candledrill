@@ -32,7 +32,8 @@ export type OverlayKind =
   | 'vwapBands'
   | 'stderr'
   | 'priceChannel'
-  | 'fvg';
+  | 'fvg'
+  | 'atm';
 export type PaneKind =
   | 'rsi'
   | 'macd'
@@ -151,6 +152,7 @@ type ExtraKind = Exclude<
   | 'stochastic'
   | 'adx'
   | 'fvg'
+  | 'atm'
 >;
 
 const MORE_TEMPLATES: Record<ExtraKind, IndicatorSetting> = {
@@ -245,6 +247,7 @@ function isExtraKind(kind: IndicatorKind): kind is ExtraKind {
   return Object.prototype.hasOwnProperty.call(MORE_TEMPLATES, kind);
 }
 const FVG_TEMPLATE: IndicatorSetting = { id: 'fvg', kind: 'fvg', visible: true, color: '#5b9cf6' };
+const ATM_TEMPLATE: IndicatorSetting = { id: 'atm', kind: 'atm', visible: true, color: '#787b86' };
 
 function defaultConfig(): PaneIndicatorConfig {
   return {
@@ -274,6 +277,8 @@ export function templateFor(kind: IndicatorKind): IndicatorSetting {
       return { ...DEFAULT_PANES[2]!, id: 'atr' };
     case 'fvg':
       return { ...FVG_TEMPLATE };
+    case 'atm':
+      return { ...ATM_TEMPLATE };
     case 'orb':
     case 'donchian':
     case 'stochastic':
@@ -304,6 +309,7 @@ function isOriginalKind(s: unknown): s is IndicatorKind {
     s === 'orb' ||
     s === 'donchian' ||
     s === 'fvg' ||
+    s === 'atm' ||
     s === 'rsi' ||
     s === 'macd' ||
     s === 'atr' ||
@@ -336,6 +342,7 @@ export function isOverlayKind(kind: IndicatorKind): kind is OverlayKind {
     case 'stderr':
     case 'priceChannel':
     case 'fvg':
+    case 'atm':
       return true;
     case 'rsi':
     case 'macd':

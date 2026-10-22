@@ -61,6 +61,12 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['fvg', 'fair value gap', 'imbalance', 'gap', 'ict'],
     singleton: true,
   },
+  {
+    kind: 'atm',
+    category: 'session',
+    aliases: ['atm', 'asia', 'tokyo', 'session', 'killzone', 'zone'],
+    singleton: true,
+  },
   { kind: 'rsi', category: 'momentum', aliases: ['rsi', 'relative strength'], singleton: false },
   { kind: 'macd', category: 'momentum', aliases: ['macd'], singleton: false },
   {

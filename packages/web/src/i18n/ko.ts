@@ -208,6 +208,7 @@ export const ko: Record<MessageKey, string> = {
   'ind.orb': 'ORB',
   'ind.donchian': '돈치안',
   'ind.fvg': 'FVG',
+  'ind.atm': 'ATM 아시아/도쿄',
   'ind.stochastic': '스토캐스틱',
   'ind.adx': 'ADX',
   'ind.minutes': '분',

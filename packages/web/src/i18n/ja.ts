@@ -211,6 +211,7 @@ export const ja: Record<MessageKey, string> = {
   'ind.orb': 'ORB',
   'ind.donchian': 'ドンチャン',
   'ind.fvg': 'FVG',
+  'ind.atm': 'ATM アジア／東京',
   'ind.stochastic': 'ストキャスティクス',
   'ind.adx': 'ADX',
   'ind.minutes': '分',

@@ -46,6 +46,7 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   orb: 'ind.orb',
   donchian: 'ind.donchian',
   fvg: 'ind.fvg',
+  atm: 'ind.atm',
   rsi: 'ind.rsi',
   macd: 'ind.macd',
   atr: 'ind.atr',
@@ -381,7 +382,12 @@ export class IndicatorPanel {
           this.commit();
         }),
       );
-    } else if (s.period !== undefined && s.kind !== 'macd' && s.kind !== 'fvg') {
+    } else if (
+      s.period !== undefined &&
+      s.kind !== 'macd' &&
+      s.kind !== 'fvg' &&
+      s.kind !== 'atm'
+    ) {
       wrap.append(
         this.numControl(
           t(s.kind === 'stochastic' ? 'ind.kPeriod' : 'ind.period'),
@@ -398,6 +404,7 @@ export class IndicatorPanel {
       s.kind !== 'donchian' &&
       s.kind !== 'adx' &&
       s.kind !== 'fvg' &&
+      s.kind !== 'atm' &&
       s.source !== undefined
     ) {
       const sel = el('select', {}) as HTMLSelectElement;
@@ -462,7 +469,8 @@ export class IndicatorPanel {
       saveIndicatorConfig(this.cfg);
       this.onChange(this.cfg);
     });
-    wrap.append(el('label', { class: 'ind-ctrl' }, t('ind.color'), color));
+    // ATM keeps the script's fixed per-session colours.
+    if (s.kind !== 'atm') wrap.append(el('label', { class: 'ind-ctrl' }, t('ind.color'), color));
     return wrap;
   }
 

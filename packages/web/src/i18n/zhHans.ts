@@ -201,6 +201,7 @@ export const zhHans: Record<MessageKey, string> = {
   'ind.orb': 'ORB',
   'ind.donchian': '唐奇安通道',
   'ind.fvg': 'FVG（公允价值缺口）',
+  'ind.atm': 'ATM 亚洲／东京时段',
   'ind.stochastic': '随机指标',
   'ind.adx': 'ADX',
   'ind.minutes': '分钟',

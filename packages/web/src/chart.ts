@@ -23,7 +23,15 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import { fvg, roundToTick, tickDecimals, type Bar, type FvgZone } from '@candledrill/core';
+import {
+  atmSessions,
+  fvg,
+  roundToTick,
+  tickDecimals,
+  type AtmSession,
+  type Bar,
+  type FvgZone,
+} from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
 import {
@@ -332,6 +340,7 @@ export class PriceChart {
   private indicatorBars: Bar[] = [];
   private fvgZones: FvgZone[] = [];
   private fvgColor = '#5b9cf6';
+  private atmList: AtmSession[] = [];
   private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
   private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
   private indicatorPane: IPaneApi<Time> | undefined = undefined;
@@ -717,6 +726,7 @@ export class PriceChart {
       if (
         this.drawings.length ||
         this.fvgZones.length ||
+        this.atmList.length ||
         this.orderLineSpecs.some((l) => l.orderId !== undefined)
       )
         this.loop();
@@ -814,6 +824,52 @@ export class PriceChart {
     return out;
   }
 
+  /** Pixel shapes of the ATM sessions that overlap the visible bars. */
+  private atmShapes() {
+    if (!this.atmList.length) return [];
+    const ts = this.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (!range) return [];
+    const x = (i: number) => {
+      const v = ts.logicalToCoordinate(i as Logical);
+      return v === null ? null : Math.round(v);
+    };
+    const y = (p: number) => {
+      const v = this.yOf(p);
+      return v === null ? null : Math.round(v);
+    };
+    const out = [];
+    for (const s of this.atmList) {
+      const last = Math.max(s.endIndex, s.highEnd, s.lowEnd);
+      if (last < range.from || s.startIndex > range.to) continue;
+      const [bx1, bx2, hx1, hx2, lx1, lx2] = [
+        x(s.startIndex),
+        x(s.endIndex),
+        x(s.highIndex),
+        x(s.highEnd),
+        x(s.lowIndex),
+        x(s.lowEnd),
+      ];
+      const [yh, yl] = [y(s.high), y(s.low)];
+      if ([bx1, bx2, hx1, hx2, lx1, lx2, yh, yl].some((v) => v === null)) continue;
+      const asia = s.key === 'asia';
+      out.push({
+        color: asia ? '#787b86' : '#f23645',
+        hiText: asia ? 'AS.H' : 'TYO.H',
+        loText: asia ? 'AS.L' : 'TYO.L',
+        bx1: bx1!,
+        bx2: bx2!,
+        hx1: hx1!,
+        hx2: hx2!,
+        lx1: lx1!,
+        lx2: lx2!,
+        yh: yh!,
+        yl: yl!,
+      });
+    }
+    return out;
+  }
+
   private timeScale() {
     return this.chart.timeScale();
   }
@@ -836,10 +892,11 @@ export class PriceChart {
       return [this.xOf(d.t1), this.yOf(d.p1), this.xOf(d.t2), this.yOf(d.p2)];
     });
     const fvgRects = this.fvgRects();
+    const atm = this.atmShapes();
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(fvgRects)}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}`;
     if (sig === this.overlaySig) return;
     this.overlaySig = sig;
     const nodes: SVGElement[] = [];
@@ -869,6 +926,36 @@ export class PriceChart {
           'stroke-dasharray': '3 3',
           'pointer-events': 'none',
         }),
+      );
+    }
+    for (const a of atm) {
+      const quiet = { 'pointer-events': 'none' };
+      const text = (tx: number, ty: number, content: string) => {
+        const node = svg('text', {
+          x: tx,
+          y: ty,
+          fill: this.theme.text,
+          'font-size': '10px',
+          'text-anchor': 'middle',
+          ...quiet,
+        });
+        node.textContent = content;
+        return node;
+      };
+      nodes.push(
+        svg('rect', {
+          x: a.bx1,
+          y: a.yh,
+          width: Math.max(1, a.bx2 - a.bx1),
+          height: Math.max(1, a.yl - a.yh),
+          fill: withAlpha(a.color, 0.2),
+          'data-kind': 'atm',
+          ...quiet,
+        }),
+        svg('line', { x1: a.hx1, x2: a.hx2, y1: a.yh, y2: a.yh, stroke: a.color, ...quiet }),
+        svg('line', { x1: a.lx1, x2: a.lx2, y1: a.yl, y2: a.yl, stroke: a.color, ...quiet }),
+        text(a.hx1, a.yh - 4, a.hiText),
+        text(a.lx1, a.yl + 12, a.loText),
       );
     }
     const handle = (
@@ -1780,7 +1867,7 @@ export class PriceChart {
       return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
     }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
-    if (s.kind === 'fvg') return [];
+    if (s.kind === 'fvg' || s.kind === 'atm') return [];
     if (s.kind === 'ichimoku') {
       return [
         `${s.id}:tenkan`,
@@ -1861,6 +1948,7 @@ export class PriceChart {
           break;
         }
         case 'fvg':
+        case 'atm':
           break;
         case 'donchian': {
           const r = donchian(bars, s.period ?? 20);
@@ -1969,7 +2057,13 @@ export class PriceChart {
     this.fvgColor = fvgSetting?.color ?? this.fvgColor;
     this.overlaySig = '';
     this.renderOverlay();
-    if (this.fvgZones.length && !this.raf) this.loop();
+    // The script only draws on charts of 30 minutes or less.
+    const atmOn = this.indicatorConfig.overlays.some((o) => o.kind === 'atm' && o.visible);
+    this.atmList =
+      atmOn && this.barSeconds <= 1800
+        ? atmSessions(bars, this.indicatorAgg.utcOffsetMinutes ?? 0)
+        : [];
+    if ((this.fvgZones.length || this.atmList.length) && !this.raf) this.loop();
 
     const paneWanted = new Set<string>();
     for (const s of this.indicatorConfig.panes) {
