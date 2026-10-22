@@ -210,6 +210,7 @@ export const ja: Record<MessageKey, string> = {
   'ind.color': '色',
   'ind.orb': 'ORB',
   'ind.donchian': 'ドンチャン',
+  'ind.fvg': 'FVG',
   'ind.stochastic': 'ストキャスティクス',
   'ind.adx': 'ADX',
   'ind.minutes': '分',

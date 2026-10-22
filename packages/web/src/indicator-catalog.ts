@@ -55,6 +55,12 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['donchian', 'channel', 'highest', 'lowest'],
     singleton: false,
   },
+  {
+    kind: 'fvg',
+    category: 'trend',
+    aliases: ['fvg', 'fair value gap', 'imbalance', 'gap', 'ict'],
+    singleton: true,
+  },
   { kind: 'rsi', category: 'momentum', aliases: ['rsi', 'relative strength'], singleton: false },
   { kind: 'macd', category: 'momentum', aliases: ['macd'], singleton: false },
   {

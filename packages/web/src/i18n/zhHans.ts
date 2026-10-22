@@ -200,6 +200,7 @@ export const zhHans: Record<MessageKey, string> = {
   'ind.color': '颜色',
   'ind.orb': 'ORB',
   'ind.donchian': '唐奇安通道',
+  'ind.fvg': 'FVG（公允价值缺口）',
   'ind.stochastic': '随机指标',
   'ind.adx': 'ADX',
   'ind.minutes': '分钟',

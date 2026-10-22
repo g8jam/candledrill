@@ -45,6 +45,7 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   vwap: 'ind.vwap',
   orb: 'ind.orb',
   donchian: 'ind.donchian',
+  fvg: 'ind.fvg',
   rsi: 'ind.rsi',
   macd: 'ind.macd',
   atr: 'ind.atr',
@@ -380,7 +381,7 @@ export class IndicatorPanel {
           this.commit();
         }),
       );
-    } else if (s.period !== undefined && s.kind !== 'macd') {
+    } else if (s.period !== undefined && s.kind !== 'macd' && s.kind !== 'fvg') {
       wrap.append(
         this.numControl(
           t(s.kind === 'stochastic' ? 'ind.kPeriod' : 'ind.period'),
@@ -392,7 +393,13 @@ export class IndicatorPanel {
         ),
       );
     }
-    if (s.kind !== 'orb' && s.kind !== 'donchian' && s.kind !== 'adx' && s.source !== undefined) {
+    if (
+      s.kind !== 'orb' &&
+      s.kind !== 'donchian' &&
+      s.kind !== 'adx' &&
+      s.kind !== 'fvg' &&
+      s.source !== undefined
+    ) {
       const sel = el('select', {}) as HTMLSelectElement;
       for (const src of SOURCE_OPTIONS) {
         sel.append(

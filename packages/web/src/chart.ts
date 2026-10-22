@@ -23,7 +23,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import { roundToTick, tickDecimals, type Bar } from '@candledrill/core';
+import { fvg, roundToTick, tickDecimals, type Bar, type FvgZone } from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
 import {
@@ -330,6 +330,8 @@ export class PriceChart {
   private indicatorConfig?: PaneIndicatorConfig;
   private indicatorAgg?: AggregateOptions;
   private indicatorBars: Bar[] = [];
+  private fvgZones: FvgZone[] = [];
+  private fvgColor = '#5b9cf6';
   private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
   private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
   private indicatorPane: IPaneApi<Time> | undefined = undefined;
@@ -712,7 +714,11 @@ export class PriceChart {
       this.raf = 0;
       if (!this.overlay.isConnected) return;
       this.renderOverlay();
-      if (this.drawings.length || this.orderLineSpecs.some((l) => l.orderId !== undefined))
+      if (
+        this.drawings.length ||
+        this.fvgZones.length ||
+        this.orderLineSpecs.some((l) => l.orderId !== undefined)
+      )
         this.loop();
     });
   }
@@ -777,6 +783,32 @@ export class PriceChart {
     return best;
   }
 
+  /** Pixel boxes of the gaps that overlap the visible bars. */
+  private fvgRects(): { x1: number; x2: number; yTop: number; yBottom: number; label: string }[] {
+    if (!this.fvgZones.length) return [];
+    const ts = this.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (!range) return [];
+    const out = [];
+    for (const z of this.fvgZones) {
+      if (z.endIndex < range.from || z.startIndex > range.to) continue;
+      const x1 = ts.logicalToCoordinate(z.startIndex as Logical);
+      const x2 = ts.logicalToCoordinate(z.endIndex as Logical);
+      const yTop = this.yOf(z.top);
+      const yBottom = this.yOf(z.bottom);
+      if (x1 === null || x2 === null || yTop === null || yBottom === null) continue;
+      const label = z.kind === 'bull' ? '+FVG' : '-FVG';
+      out.push({
+        x1: Math.round(x1),
+        x2: Math.round(x2),
+        yTop: Math.round(yTop),
+        yBottom: Math.round(yBottom),
+        label,
+      });
+    }
+    return out;
+  }
+
   private timeScale() {
     return this.chart.timeScale();
   }
@@ -798,14 +830,38 @@ export class PriceChart {
         ];
       return [this.xOf(d.t1), this.yOf(d.p1), this.xOf(d.t2), this.yOf(d.p2)];
     });
+    const fvgRects = this.fvgRects();
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(fvgRects)}`;
     if (sig === this.overlaySig) return;
     this.overlaySig = sig;
     const nodes: SVGElement[] = [];
     const accent = this.theme.accent;
+    for (const r of fvgRects) {
+      nodes.push(
+        svg('rect', {
+          x: r.x1,
+          y: r.yTop,
+          width: Math.max(1, r.x2 - r.x1),
+          height: Math.max(1, r.yBottom - r.yTop),
+          fill: withAlpha(this.fvgColor, 0.3),
+          'pointer-events': 'none',
+          'data-kind': 'fvg',
+        }),
+      );
+      const label = svg('text', {
+        x: r.x2 + 3,
+        y: (r.yTop + r.yBottom) / 2 + 4,
+        fill: this.theme.text,
+        'font-size': '10px',
+        'font-family': 'monospace',
+        'pointer-events': 'none',
+      });
+      label.textContent = r.label;
+      nodes.push(label);
+    }
     const handle = (
       d: Drawing,
       part: DragPart,
@@ -1715,6 +1771,7 @@ export class PriceChart {
       return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
     }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
+    if (s.kind === 'fvg') return [];
     if (s.kind === 'ichimoku') {
       return [
         `${s.id}:tenkan`,
@@ -1794,6 +1851,8 @@ export class PriceChart {
           this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.low, bars));
           break;
         }
+        case 'fvg':
+          break;
         case 'donchian': {
           const r = donchian(bars, s.period ?? 20);
           this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
@@ -1895,6 +1954,13 @@ export class PriceChart {
         }
       }
     }
+
+    const fvgSetting = this.indicatorConfig.overlays.find((o) => o.kind === 'fvg' && o.visible);
+    this.fvgZones = fvgSetting ? fvg(bars) : [];
+    this.fvgColor = fvgSetting?.color ?? this.fvgColor;
+    this.overlaySig = '';
+    this.renderOverlay();
+    if (this.fvgZones.length && !this.raf) this.loop();
 
     const paneWanted = new Set<string>();
     for (const s of this.indicatorConfig.panes) {

@@ -345,3 +345,4 @@ export {
   tickSimFromSession,
   type TickSimState,
 } from './tick-engine.js';
+export { fvg, type FvgZone } from './fvg.js';

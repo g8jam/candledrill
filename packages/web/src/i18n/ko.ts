@@ -207,6 +207,7 @@ export const ko: Record<MessageKey, string> = {
   'ind.color': '색상',
   'ind.orb': 'ORB',
   'ind.donchian': '돈치안',
+  'ind.fvg': 'FVG',
   'ind.stochastic': '스토캐스틱',
   'ind.adx': 'ADX',
   'ind.minutes': '분',
