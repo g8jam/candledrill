@@ -784,7 +784,13 @@ export class PriceChart {
   }
 
   /** Pixel boxes of the gaps that overlap the visible bars. */
-  private fvgRects(): { x1: number; x2: number; yTop: number; yBottom: number; label: string }[] {
+  private fvgRects(): {
+    x1: number;
+    x2: number;
+    yTop: number;
+    yBottom: number;
+    mitigated: boolean;
+  }[] {
     if (!this.fvgZones.length) return [];
     const ts = this.timeScale();
     const range = ts.getVisibleLogicalRange();
@@ -797,13 +803,12 @@ export class PriceChart {
       const yTop = this.yOf(z.top);
       const yBottom = this.yOf(z.bottom);
       if (x1 === null || x2 === null || yTop === null || yBottom === null) continue;
-      const label = z.kind === 'bull' ? '+FVG' : '-FVG';
       out.push({
         x1: Math.round(x1),
         x2: Math.round(x2),
         yTop: Math.round(yTop),
         yBottom: Math.round(yBottom),
-        label,
+        mitigated: z.mitigated,
       });
     }
     return out;
@@ -846,21 +851,25 @@ export class PriceChart {
           y: r.yTop,
           width: Math.max(1, r.x2 - r.x1),
           height: Math.max(1, r.yBottom - r.yTop),
-          fill: withAlpha(this.fvgColor, 0.3),
+          // Filled gaps stay visible in the script's muted grey.
+          fill: r.mitigated ? withAlpha('#787b86', 0.15) : withAlpha(this.fvgColor, 0.3),
           'pointer-events': 'none',
-          'data-kind': 'fvg',
+          'data-kind': r.mitigated ? 'fvg-mitigated' : 'fvg',
         }),
       );
-      const label = svg('text', {
-        x: r.x2 + 3,
-        y: (r.yTop + r.yBottom) / 2 + 4,
-        fill: this.theme.text,
-        'font-size': '10px',
-        'font-family': 'monospace',
-        'pointer-events': 'none',
-      });
-      label.textContent = r.label;
-      nodes.push(label);
+      if (r.mitigated) continue;
+      const mid = Math.round((r.yTop + r.yBottom) / 2);
+      nodes.push(
+        svg('line', {
+          x1: r.x1,
+          x2: r.x2,
+          y1: mid,
+          y2: mid,
+          stroke: withAlpha(this.theme.text, 0.6),
+          'stroke-dasharray': '3 3',
+          'pointer-events': 'none',
+        }),
+      );
     }
     const handle = (
       d: Drawing,

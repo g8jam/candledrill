@@ -18,14 +18,14 @@ describe('fvg', () => {
     expect(fvg(pattern)).toEqual([]);
     const bars = [...pattern, bar(3, 106, 111)];
     expect(fvg(bars)).toEqual([
-      { kind: 'bull', top: 105, bottom: 100, startIndex: 0, endIndex: 3 },
+      { kind: 'bull', top: 105, bottom: 100, startIndex: 0, endIndex: 3, mitigated: false },
     ]);
   });
 
   it('finds a bear gap', () => {
     const bars = [bar(0, 110, 112), bar(1, 100, 110), bar(2, 95, 104), bar(3, 94, 99)];
     expect(fvg(bars)).toEqual([
-      { kind: 'bear', top: 110, bottom: 104, startIndex: 0, endIndex: 3 },
+      { kind: 'bear', top: 110, bottom: 104, startIndex: 0, endIndex: 3, mitigated: false },
     ]);
   });
 
@@ -34,21 +34,24 @@ describe('fvg', () => {
     expect(fvg(bars)).toEqual([]);
   });
 
-  it('removes a bull gap after a close below its bottom, checked on the previous bar', () => {
+  it('marks a bull gap mitigated after a close below its bottom, checked on the previous bar', () => {
     const base = [bar(0, 99, 100), bar(1, 100, 110), bar(2, 105, 112), bar(3, 106, 111)];
     const dip = bar(4, 95, 107, 99);
-    expect(fvg([...base, dip])).toHaveLength(1);
-    expect(fvg([...base, dip, bar(5, 96, 100)])).toEqual([]);
+    expect(fvg([...base, dip]).map((z) => z.mitigated)).toEqual([false]);
+    expect(fvg([...base, dip, bar(5, 96, 100)]).map((z) => z.mitigated)).toEqual([true]);
   });
 
   it('keeps a gap that is only wicked into', () => {
     const base = [bar(0, 99, 100), bar(1, 100, 110), bar(2, 105, 112), bar(3, 106, 111)];
     const wick = bar(4, 98, 108, 104);
-    expect(fvg([...base, wick, bar(5, 104, 106)])).toHaveLength(1);
+    expect(fvg([...base, wick, bar(5, 104, 106)]).map((z) => z.mitigated)).toEqual([false]);
   });
 
-  it('removes a bear gap after a close above its top', () => {
+  it('marks bear gaps mitigated after a close above their top', () => {
     const base = [bar(0, 110, 112), bar(1, 100, 110), bar(2, 95, 104), bar(3, 94, 99)];
-    expect(fvg([...base, bar(4, 100, 115, 111), bar(5, 110, 112)])).toEqual([]);
+    // Bar 4 also opens a second bear gap (100 / 99); the close at 111 fills both.
+    expect(fvg([...base, bar(4, 100, 115, 111), bar(5, 110, 112)]).map((z) => z.mitigated)).toEqual(
+      [true, true],
+    );
   });
 });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Fair value gaps, ported from the TradingView script "FVG Detector (UDT) [CantoLab]"
-// with its default inputs (bull + bear, mitigated gaps removed).
+// with bull + bear gaps and "Show Mitigated" on: mitigated gaps are kept and flagged.
 //
 // On each bar i (the newest bar is "[0]"), bars i-3 and i-1 are compared, skipping the
 // displacement bar i-2. The newest bar is never part of the pattern, so a still-forming
@@ -21,14 +21,17 @@ export interface FvgZone {
   readonly startIndex: number;
   /** Index of the bar on which the gap was found (box right edge). */
   readonly endIndex: number;
+  /** True once a close has filled the gap. */
+  readonly mitigated: boolean;
 }
 
-/** Gaps still unmitigated after the last bar, oldest first. */
+/** All gaps found up to the last bar, oldest first. */
 export function fvg(bars: readonly Bar[]): FvgZone[] {
   // Bull gaps sorted by bottom ascending, bear gaps by top descending, so the gap that
   // a close mitigates first is always at the end of its array.
   const bull: FvgZone[] = [];
   const bear: FvgZone[] = [];
+  const done: FvgZone[] = [];
   const insert = (arr: FvgZone[], z: FvgZone, key: (x: FvgZone) => number, desc: boolean) => {
     let lo = 0;
     let hi = arr.length;
@@ -50,6 +53,7 @@ export function fvg(bars: readonly Bar[]): FvgZone[] {
         bottom: newer.high,
         startIndex: i - 3,
         endIndex: i,
+        mitigated: false,
       };
       insert(bear, z, (x) => x.top, true);
     } else if (older.high < newer.low) {
@@ -59,12 +63,15 @@ export function fvg(bars: readonly Bar[]): FvgZone[] {
         bottom: older.high,
         startIndex: i - 3,
         endIndex: i,
+        mitigated: false,
       };
       insert(bull, z, (x) => x.bottom, false);
     }
     const close = newer.close;
-    while (bull.length && close < bull[bull.length - 1]!.bottom) bull.pop();
-    while (bear.length && close > bear[bear.length - 1]!.top) bear.pop();
+    while (bull.length && close < bull[bull.length - 1]!.bottom)
+      done.push({ ...bull.pop()!, mitigated: true });
+    while (bear.length && close > bear[bear.length - 1]!.top)
+      done.push({ ...bear.pop()!, mitigated: true });
   }
-  return [...bull, ...bear].sort((a, b) => a.startIndex - b.startIndex);
+  return [...done, ...bull, ...bear].sort((a, b) => a.startIndex - b.startIndex);
 }
