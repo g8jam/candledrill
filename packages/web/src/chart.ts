@@ -513,14 +513,21 @@ export class PriceChart {
   /** Called with the real time under the mouse (null when the mouse leaves the chart). */
   onCrosshair(handler: (time: number | null) => void): void {
     this.chart.subscribeCrosshairMove((param) => {
-      if (param.point === undefined || param.time === undefined) {
+      // Right of the last bar there is no bar time: extrapolate it from x instead of
+      // treating it as "left the chart", so the rubber-band keeps following the mouse.
+      const time =
+        param.point === undefined
+          ? null
+          : param.time !== undefined
+            ? Number(param.time) - this.timeShiftSeconds
+            : this.timeAt(param.point.x);
+      if (param.point === undefined || time === null) {
         this.crosshair = null;
         this.overlaySig = '';
         this.renderOverlay();
         return handler(null);
       }
       if (!param.sourceEvent) return; // set by another chart: do not echo it back
-      const time = Number(param.time) - this.timeShiftSeconds;
       const price = this.candles.coordinateToPrice(param.point.y);
       this.crosshair = { t: time, p: price === null ? NaN : Number(price) };
       this.overlaySig = '';
