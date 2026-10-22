@@ -125,16 +125,17 @@ export function resolvePracticeTimeframe(
  * source when it is shorter than a practice bar), at or above the bound practice
  * timeframe, and only where the source divides the pane so buckets stay aligned.
  */
+/** Chart menu choices: the standard practice timeframes plus 30m and 4h (chart only). */
+const CHART_TIMEFRAMES: readonly number[] = [60, 300, 900, 1800, 3600, 14400, 86400];
+
 export function practiceChartTimeframes(
   sourceSeconds: number,
   practiceTf?: number,
 ): readonly number[] {
-  if (!Number.isInteger(sourceSeconds) || sourceSeconds <= 0) return STANDARD_TIMEFRAMES;
-  const aligned = STANDARD_TIMEFRAMES.filter(
-    (tf) => tf >= sourceSeconds && tf % sourceSeconds === 0,
-  );
+  if (!Number.isInteger(sourceSeconds) || sourceSeconds <= 0) return CHART_TIMEFRAMES;
+  const aligned = CHART_TIMEFRAMES.filter((tf) => tf >= sourceSeconds && tf % sourceSeconds === 0);
   const floor = practiceTf !== undefined && aligned.includes(practiceTf) ? practiceTf : aligned[0];
-  if (floor === undefined) return STANDARD_TIMEFRAMES;
+  if (floor === undefined) return CHART_TIMEFRAMES;
   return aligned.filter((tf) => tf >= floor);
 }
 
