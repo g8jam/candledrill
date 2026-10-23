@@ -1309,3 +1309,11 @@ a#tv-attr-logo svg {
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
+svg.draw-overlay .hit {
+  pointer-events: all;
+  cursor: pointer;
+}
+/* While a drawing tool is active, existing shapes never catch the mouse. */
+.charts.drawing svg.draw-overlay * {
+  pointer-events: none;
+}

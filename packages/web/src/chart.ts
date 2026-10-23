@@ -355,6 +355,7 @@ export class PriceChart {
   private pendingAnchor: { t: number; p: number } | null = null;
   private crosshair: { t: number; p: number } | null = null;
   private shiftDown = false;
+  private drawingsLoaded = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -695,6 +696,11 @@ export class PriceChart {
 
   /** Render user drawings. `snap` maps a real time to a bar time of this chart's timeframe. */
   setDrawings(drawings: readonly Drawing[], snap: (t: number) => number): void {
+    // A drawing just added (not the initial load) starts selected, as in TradingView.
+    const known = new Set(this.drawings.map((d) => d.id));
+    const added = drawings.filter((d) => !known.has(d.id) && !this.hiddenIds.has(d.id));
+    if (this.drawingsLoaded && added.length === 1) this.selected = added[0]!.id;
+    this.drawingsLoaded = true;
     // Hidden drawings stay saved but are not drawn; locked ones are drawn without handles.
     this.drawings = drawings.filter((d) => !this.hiddenIds.has(d.id));
     this.snapFn = snap;
@@ -992,7 +998,8 @@ export class PriceChart {
       y: number | null,
       body = false,
     ) => {
-      if (x === null || y === null || this.lockedIds.has(d.id)) return;
+      // Like TradingView: anchor handles only show on the selected drawing.
+      if (x === null || y === null || this.lockedIds.has(d.id) || this.selected !== d.id) return;
       const size = body ? 10 : 6;
       const h = svg('rect', {
         x: x - size / 2,
@@ -1007,8 +1014,52 @@ export class PriceChart {
       h.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, part));
       nodes.push(h);
     };
+    // Invisible, wider targets so an unselected drawing can be clicked (selected) or dragged.
+    const hit = (d: Drawing, node: SVGElement) => {
+      node.classList.add('hit');
+      node.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, 'body'));
+      nodes.push(node);
+    };
+    const hitLine = (d: Drawing, x1: number, y1: number, x2: number, y2: number) =>
+      hit(d, svg('line', { x1, y1, x2, y2, stroke: 'transparent', 'stroke-width': 12 }));
+    const hitRect = (d: Drawing, x1: number, y1: number, x2: number, y2: number) =>
+      hit(
+        d,
+        svg('rect', {
+          x: Math.min(x1, x2),
+          y: Math.min(y1, y2),
+          width: Math.max(4, Math.abs(x2 - x1)),
+          height: Math.max(4, Math.abs(y2 - y1)),
+          fill: 'transparent',
+        }),
+      );
     this.drawings.forEach((d, i) => {
       const p = pts[i]!;
+      if (!this.lockedIds.has(d.id)) {
+        const [a, b, c, e] = p;
+        if (d.kind === 'hline' && a != null) hitLine(d, 0, a, plotW, a);
+        else if (d.kind === 'vline' && a != null) hitLine(d, a, 0, a, this.overlay.clientHeight);
+        else if (
+          (d.kind === 'tline' || d.kind === 'arrow' || d.kind === 'ray') &&
+          a != null &&
+          b != null &&
+          c != null &&
+          e != null
+        )
+          hitLine(d, a, b, c, e);
+        else if (
+          (d.kind === 'rect' ||
+            d.kind === 'measure' ||
+            d.kind === 'prange' ||
+            d.kind === 'fib' ||
+            d.kind === 'channel') &&
+          a != null &&
+          b != null &&
+          c != null &&
+          e != null
+        )
+          hitRect(d, a, b, c, e);
+      }
       if (d.kind === 'hline') {
         handle(d, 'price', plotW - 24, p[0]!);
       } else if (d.kind === 'text') {
@@ -1031,7 +1082,8 @@ export class PriceChart {
           this.selected = d.id;
           this.editTextContent(d);
         });
-        nodes.push(t);
+        if (this.lockedIds.has(d.id)) nodes.push(t);
+        else hit(d, t);
         handle(d, 'body', x, y, true);
       } else if (d.kind === 'arrow') {
         const [x1, y1, x2, y2] = p;
@@ -1083,6 +1135,7 @@ export class PriceChart {
             'data-drawing': d.id,
           }),
         );
+        if (!this.lockedIds.has(d.id)) hit(d, nodes.pop()!);
         handle(d, 'body', coords[0]!, coords[1]!, true);
       } else if (
         d.kind === 'ray' ||
@@ -1781,10 +1834,15 @@ export class PriceChart {
         if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
         if (
           (e.target as Element).closest?.(
-            '.handle, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
-          )
-        )
+            '.handle, .hit, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
+          )        )
           return;
+        if (this.selected) {
+          this.selected = null;
+          this.syncStyleBar();
+          this.overlaySig = '';
+          this.renderOverlay();
+        }
         const rect = this.container.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
