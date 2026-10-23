@@ -367,6 +367,7 @@ export class PriceChart {
   private shiftDown = false;
   private drawingsLoaded = false;
   private drawingMode = false;
+  private blindAxis = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -558,6 +559,7 @@ export class PriceChart {
 
   /** Blind mode: the time axis and crosshair show weekday and clock time, never a date. */
   setBlindAxis(on: boolean): void {
+    this.blindAxis = on;
     const clock = (time: Time) => {
       const d = new Date(Number(time) * 1000);
       const hm = d.toISOString().slice(11, 16);
@@ -1214,6 +1216,40 @@ export class PriceChart {
               'stroke-width': 1.5,
             }),
           );
+          // Time label in the time-axis row, as TradingView does; blind practice shows no date.
+          const axisH = this.chart.timeScale().height();
+          const top = this.overlay.clientHeight - axisH;
+          const shown = new Date(this.ts(this.snapFn(d.t1)) * 1000);
+          const iso = shown.toISOString();
+          const day = weekdayName(shown.getUTCDay());
+          const text = this.blindAxis
+            ? `${day} ${iso.slice(11, 16)}`
+            : `${day} ${iso.slice(0, 10)}  ${iso.slice(11, 16)}`;
+          const w = [...text].reduce((n, ch) => n + (ch.charCodeAt(0) > 0x2e80 ? 13 : 7.5), 0) + 16;
+          const h = Math.max(16, axisH - 2);
+          nodes.push(
+            svg('rect', {
+              x: x1 - w / 2,
+              y: top + 1,
+              width: w,
+              height: h,
+              rx: 2,
+              fill: this.theme.text,
+              'data-kind': 'vline-label',
+            }),
+          );
+          const label = svg('text', {
+            x: x1,
+            y: top + 1 + h / 2 + 4,
+            'font-size': '12px',
+            'font-weight': '600',
+            'text-anchor': 'middle',
+            // Inline style: the overlay's text rule would otherwise recolour it.
+            style: `fill: ${this.theme.background}; stroke: none`,
+            'data-testid': `vline-label-${d.id}`,
+          });
+          label.textContent = text;
+          nodes.push(label);
           handle(d, 'p1', x1, y1);
         } else if (d.kind === 'ray') {
           // Extend from p1 through p2 to the plot edge.
