@@ -369,6 +369,8 @@ export class PriceChart {
   private drawingMode = false;
   private blindAxis = false;
   private dynSig = '';
+  /** Point being dragged (a drawing handle or body), shown with a crosshair. */
+  private dragCursor: { t: number; p: number } | null = null;
   private readonly dynLayer = svg('g', { class: 'overlay-dynamic' });
   private readonly axisLayer = svg('g', { class: 'overlay-future-axis' });
 
@@ -1607,16 +1609,20 @@ export class PriceChart {
 
   /** Crosshair while drawing and the trendline rubber-band: redrawn on every mouse move. */
   private renderDynamic(plotW: number): void {
-    const sig = `${plotW}|${this.drawingMode}|${this.shiftDown}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}`;
+    const sig = `${plotW}|${this.drawingMode}|${this.shiftDown}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(this.dragCursor)}`;
     if (sig === this.dynSig) return;
     this.dynSig = sig;
     const accent = this.theme.accent;
     const nodes: SVGElement[] = [];
-    if (this.drawingMode && this.crosshair) {
-      const x = this.xOf(this.crosshair.t);
-      const y = this.yOf(
-        this.shiftDown && this.pendingAnchor ? this.pendingAnchor.p : this.crosshair.p,
-      );
+    const axisNodes: SVGElement[] = [];
+    // While dragging the chart cannot see the mouse, so draw the crosshair at the dragged
+    // point; while a drawing tool is active, at the point the next click will place.
+    const cursor = this.dragCursor ?? (this.drawingMode ? this.crosshair : null);
+    if (cursor) {
+      const x = this.xOf(cursor.t);
+      const price =
+        !this.dragCursor && this.shiftDown && this.pendingAnchor ? this.pendingAnchor.p : cursor.p;
+      const y = this.yOf(price);
       const style = {
         stroke: withAlpha(this.theme.text, 0.6),
         'stroke-width': 1,
@@ -1627,6 +1633,22 @@ export class PriceChart {
       if (x !== null)
         nodes.push(svg('line', { x1: x, x2: x, y1: 0, y2: this.overlay.clientHeight, ...style }));
       if (y !== null) nodes.push(svg('line', { x1: 0, x2: plotW, y1: y, y2: y, ...style }));
+      if (y !== null && this.dragCursor) {
+        // Price tag on the price scale, so the level can be matched to earlier prices.
+        const w = this.overlay.clientWidth;
+        axisNodes.push(
+          svg('rect', { x: plotW, y: y - 9, width: w - plotW, height: 18, fill: this.theme.text }),
+        );
+        const tag = svg('text', {
+          x: plotW + 4,
+          y: y + 4,
+          'font-size': '11px',
+          style: `fill: ${this.theme.background}; stroke: none`,
+          'data-kind': 'drag-price',
+        });
+        tag.textContent = roundToTick(price, this.tick).toFixed(tickDecimals(this.tick));
+        axisNodes.push(tag);
+      }
     }
     // Rubber-band for trendline / arrow while waiting for the second click.
     if (this.pendingAnchor && this.crosshair) {
@@ -1650,8 +1672,9 @@ export class PriceChart {
         );
       }
     }
-    this.dynLayer.setAttribute('clip-path', `url(#${this.clipId})`);
-    this.dynLayer.replaceChildren(...nodes);
+    const clipped = svg('g', { 'clip-path': `url(#${this.clipId})` });
+    clipped.append(...nodes);
+    this.dynLayer.replaceChildren(clipped, ...axisNodes);
   }
 
   private renderedOverlay(nodes: SVGElement[], plotW: number, w: number): void {
@@ -1731,11 +1754,13 @@ export class PriceChart {
             : start.p1
           : p;
       const next = this.dragged(start, part, t, point, t - this.drag.t0, p - this.drag.p0);
+      this.dragCursor = { t, p: point };
       this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
       this.overlaySig = '';
       this.renderOverlay();
     };
     const up = () => {
+      this.dragCursor = null;
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       this.overlay.classList.remove('dragging');
