@@ -368,6 +368,8 @@ export class PriceChart {
   private drawingsLoaded = false;
   private drawingMode = false;
   private blindAxis = false;
+  private dynSig = '';
+  private readonly dynLayer = svg('g', { class: 'overlay-dynamic' });
 
   constructor(
     private readonly container: HTMLElement,
@@ -501,7 +503,6 @@ export class PriceChart {
     if (e.key !== 'Shift' || this.shiftDown === (e.type === 'keydown')) return;
     this.shiftDown = e.type === 'keydown';
     if (!this.pendingAnchor) return;
-    this.overlaySig = '';
     this.renderOverlay();
   };
 
@@ -597,14 +598,12 @@ export class PriceChart {
             : this.timeAt(param.point.x);
       if (param.point === undefined || time === null) {
         this.crosshair = null;
-        this.overlaySig = '';
         this.renderOverlay();
         return handler(null);
       }
       if (!param.sourceEvent) return; // set by another chart: do not echo it back
       const price = this.candles.coordinateToPrice(param.point.y);
       this.crosshair = { t: time, p: price === null ? NaN : Number(price) };
-      this.overlaySig = '';
       this.renderOverlay();
       handler(time);
     });
@@ -827,12 +826,13 @@ export class PriceChart {
   /** x pixel of a real time (extrapolated to the right of the last bar). */
   private xOf(time: number): number | null {
     const ts = this.timeScale();
-    const data = this.candles.data();
-    if (data.length === 0) return null;
+    // indicatorBars mirrors the candle series; series.data() would copy every bar per call.
+    const n = this.indicatorBars.length;
+    if (n === 0) return null;
     const shown = this.ts(this.snapFn(time));
-    const lastShown = Number(data[data.length - 1]!.time);
+    const lastShown = Number(this.ts(this.indicatorBars[n - 1]!.time));
     let logical: number;
-    if (shown > lastShown) logical = data.length - 1 + (shown - lastShown) / this.barSeconds;
+    if (shown > lastShown) logical = n - 1 + (shown - lastShown) / this.barSeconds;
     else {
       const idx = ts.timeToIndex(shown as UTCTimestamp, true);
       if (idx === null) return null;
@@ -842,14 +842,14 @@ export class PriceChart {
   }
 
   private timeAt(x: number): number | null {
-    const data = this.candles.data();
+    const bars = this.indicatorBars;
     const logical = this.timeScale().coordinateToLogical(x);
-    if (logical === null || data.length === 0) return null;
+    if (logical === null || bars.length === 0) return null;
     const i = Math.round(logical);
-    const lastShown = Number(data[data.length - 1]!.time);
-    if (i >= data.length - 1)
-      return this.fromTs(lastShown + (i - (data.length - 1)) * this.barSeconds);
-    return this.fromTs(Number(data[Math.max(0, i)]!.time));
+    const lastShown = Number(this.ts(bars[bars.length - 1]!.time));
+    if (i >= bars.length - 1)
+      return this.fromTs(lastShown + (i - (bars.length - 1)) * this.barSeconds);
+    return bars[Math.max(0, i)]!.time;
   }
 
   private yOf(price: number): number | null {
@@ -987,8 +987,12 @@ export class PriceChart {
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}`;
-    if (sig === this.overlaySig) return;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}`;
+    // Mouse moves only change the crosshair / rubber-band layer; keep the rest as is.
+    if (sig === this.overlaySig) {
+      this.renderDynamic(plotW);
+      return;
+    }
     this.overlaySig = sig;
     const nodes: SVGElement[] = [];
     const accent = this.theme.accent;
@@ -1544,6 +1548,16 @@ export class PriceChart {
         }
       }
     });
+    this.renderedOverlay(nodes, plotW, w);
+  }
+
+  /** Crosshair while drawing and the trendline rubber-band: redrawn on every mouse move. */
+  private renderDynamic(plotW: number): void {
+    const sig = `${plotW}|${this.drawingMode}|${this.shiftDown}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}`;
+    if (sig === this.dynSig) return;
+    this.dynSig = sig;
+    const accent = this.theme.accent;
+    const nodes: SVGElement[] = [];
     if (this.drawingMode && this.crosshair) {
       const x = this.xOf(this.crosshair.t);
       const y = this.yOf(
@@ -1582,7 +1596,11 @@ export class PriceChart {
         );
       }
     }
+    this.dynLayer.setAttribute('clip-path', `url(#${this.clipId})`);
+    this.dynLayer.replaceChildren(...nodes);
+  }
 
+  private renderedOverlay(nodes: SVGElement[], plotW: number, w: number): void {
     // Clip shapes to the plot area so they never cover the price scale.
     const clipId = this.clipId;
     const defs = svg('defs', {});
@@ -1617,7 +1635,9 @@ export class PriceChart {
       h.addEventListener('pointerdown', (ev) => this.startOrderDrag(ev, orderId));
       orderGroup.append(h);
     }
-    this.overlay.replaceChildren(defs, g, orderGroup);
+    this.overlay.replaceChildren(defs, g, orderGroup, this.dynLayer);
+    this.dynSig = '';
+    this.renderDynamic(plotW);
   }
 
   private arrowHead(x: number, y: number, angle: number, color: string): SVGPathElement {

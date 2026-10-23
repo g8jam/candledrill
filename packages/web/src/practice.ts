@@ -755,6 +755,40 @@ export class PracticeView {
    * tool's right edge) that reaches the target or the stop; the stop wins a tie, as in
    * the fill model.
    */
+  private outcomeCache = new Map<string, { exit: number | null; last: number }>();
+
+  /** First bar after the entry bar (up to t2) reaching stop or target; binary search + cache. */
+  private positionOutcome(
+    d: Extract<Drawing, { kind: 'position' }>,
+    dir: number,
+  ): { exit: number | null; last: number } {
+    const bars = this.bars;
+    const key = `${d.t1}|${d.t2}|${d.entry}|${d.stop}|${d.target}|${dir}|${bars.length}|${bars.at(-1)?.time}`;
+    const hit = this.outcomeCache.get(key);
+    if (hit) return hit;
+    let lo = 0;
+    let hi = bars.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (bars[mid]!.time <= d.t1) lo = mid + 1;
+      else hi = mid;
+    }
+    let exit: number | null = null;
+    let last = d.entry;
+    for (let i = lo; i < bars.length; i++) {
+      const b = bars[i]!;
+      if (b.time > d.t2) break;
+      last = b.close;
+      if (dir > 0 ? b.low <= d.stop : b.high >= d.stop) exit = d.stop;
+      else if (dir > 0 ? b.high >= d.target : b.low <= d.target) exit = d.target;
+      if (exit !== null) break;
+    }
+    if (this.outcomeCache.size > 500) this.outcomeCache.clear();
+    const out = { exit, last };
+    this.outcomeCache.set(key, out);
+    return out;
+  }
+
   private positionLabel(d: Extract<Drawing, { kind: 'position' }>): PositionLabels {
     const s = this.meta!.settings;
     const qty = this.side?.quantity ?? 1;
@@ -769,16 +803,7 @@ export class PracticeView {
         money: fmtMoney(pts * qty * s.pointValue),
       };
     };
-    let exit: number | null = null;
-    let last = d.entry;
-    for (const b of this.bars) {
-      if (b.time <= d.t1) continue;
-      if (b.time > d.t2) break;
-      last = b.close;
-      if (dir > 0 ? b.low <= d.stop : b.high >= d.stop) exit = d.stop;
-      else if (dir > 0 ? b.high >= d.target : b.low <= d.target) exit = d.target;
-      if (exit !== null) break;
-    }
+    const { exit, last } = this.positionOutcome(d, dir);
     const pnl = ((exit ?? last) - d.entry) * dir;
     const risk = Math.abs(d.entry - d.stop);
     return {
