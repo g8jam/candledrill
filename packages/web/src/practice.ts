@@ -115,6 +115,15 @@ function saveCheckpoints(id: number, list: Checkpoint[]): void {
   }
 }
 
+const HIDE_KEY = 'candledrill.hideDrawings';
+
+function loadDrawingsHidden(): boolean {
+  try {
+    return localStorage.getItem(HIDE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 const SPEEDS = [0.5, 1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
 /** Last playback speed on this device. Missing or unknown values fall back to 1 bar/s. */
@@ -192,6 +201,7 @@ export class PracticeView {
   private indicatorConfig: PaneIndicatorConfig = loadIndicatorConfig();
   private indicatorPanels: IndicatorPanel[] = [];
   private palettes: DrawingPalette[] = [];
+  private drawingsHidden = loadDrawingsHidden();
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
   /** Engine states before each action, newest last (rewind). */
@@ -647,6 +657,8 @@ export class PracticeView {
     for (const p of this.panes) p.chart.setPendingAnchor(null);
     this.els.charts?.classList.toggle('drawing', mode !== null);
     for (const p of this.palettes) p.setActive(mode);
+    // Drawing while drawings are hidden would be invisible: show them again.
+    if (mode !== null && this.drawingsHidden) this.setDrawingsHidden(false);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
     if (mode === 'freehand') {
       for (const p of this.panes) {
@@ -719,12 +731,40 @@ export class PracticeView {
   private flags: DrawingFlags = { hidden: [], locked: [] };
   private objectsList: HTMLElement | undefined;
 
+  /** One click hides every drawing on every pane; the next shows them again. */
+  private hideButton(): HTMLElement {
+    const b = el('button', { type: 'button', class: 'small ghost', 'data-testid': 'hide-toggle' });
+    b.addEventListener('click', () => this.setDrawingsHidden(!this.drawingsHidden));
+    this.syncHideButton(b);
+    return b;
+  }
+
+  private setDrawingsHidden(on: boolean): void {
+    this.drawingsHidden = on;
+    try {
+      localStorage.setItem(HIDE_KEY, on ? '1' : '0');
+    } catch {
+      // Preference only.
+    }
+    this.renderDrawings();
+    for (const b of document.querySelectorAll<HTMLElement>('[data-testid=hide-toggle]'))
+      this.syncHideButton(b);
+  }
+
+  private syncHideButton(b: HTMLElement): void {
+    const key: MessageKey = this.drawingsHidden ? 'pr.showDrawings' : 'pr.hideDrawings';
+    b.dataset.i18n = key;
+    b.textContent = t(key);
+    b.setAttribute('aria-pressed', String(this.drawingsHidden));
+  }
+
   private renderDrawings(): void {
     const hidden = new Set(this.flags.hidden);
     const locked = new Set(this.flags.locked);
     for (const p of this.panes) {
       p.chart.setDrawingFlags(hidden, locked);
-      p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
+      // The one-click hide button leaves every drawing off the chart (they are kept).
+      p.chart.setDrawings(this.drawingsHidden ? [] : this.drawings, (time) => this.snap(p, time));
     }
     this.renderObjects();
   }
@@ -841,6 +881,7 @@ export class PracticeView {
       select,
       el('span', { class: 'chart-clock' }),
       el('span', { class: 'spacer' }),
+      this.hideButton(),
       indBtn,
     );
     const body = el('div', { class: 'chart-body' });
