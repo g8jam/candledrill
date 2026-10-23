@@ -61,6 +61,7 @@ import { mountCountdown, takeCountdownPending } from './countdown.js';
 import type { SessionCountdown } from './countdown.js';
 import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText, weekdayName } from './labels.js';
+import { setTaipeiTime, taipeiTime, toDisplayWall } from './display-time.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 import { RulesView } from './rules-view.js';
 import { RulesStrip } from './rules-strip.js';
@@ -411,6 +412,15 @@ export class PracticeView {
       this.linkCharts = linkBox.checked;
       localStorage.setItem('candledrill.link', this.linkCharts ? '1' : '0');
     });
+    const tpe = el('label', { class: 'row muted' });
+    const tpeBox = el('input', { type: 'checkbox', 'data-testid': 'taipei-time' });
+    tpeBox.checked = taipeiTime.on;
+    tpe.append(tpeBox, el('span', { 'data-i18n': 'pr.taipeiTime' }, t('pr.taipeiTime')));
+    // Every time label is built from this setting, so reload to redraw them all.
+    tpeBox.addEventListener('change', () => {
+      setTaipeiTime(tpeBox.checked);
+      location.reload();
+    });
     const reveal = btn('pr.reveal', 'ghost', 'btn-reveal');
     reveal.hidden = !this.blindHidden;
     reveal.addEventListener('click', () => void this.reveal());
@@ -461,7 +471,7 @@ export class PracticeView {
       reviewStatus,
       el('span', { class: 'sep tb-wide' }),
       el('span', { class: 'row tb-split' }, split),
-      el('span', { class: 'tb-wide row' }, link),
+      el('span', { class: 'tb-wide row' }, link, tpe),
       el('span', { class: 'spacer' }),
       replayState,
       clock,
@@ -2282,7 +2292,7 @@ export class PracticeView {
       blind?.revealed && blind.timeShift !== undefined
         ? this.cursorTime - blind.timeShift
         : this.cursorTime;
-    const day = new Date((shown + off * 60) * 1000).getUTCDay();
+    const day = new Date(toDisplayWall(shown + off * 60) * 1000).getUTCDay();
     for (const c of this.els.charts!.querySelectorAll<HTMLElement>('.chart-clock'))
       c.textContent = this.blindHidden ? '' : `${fmtTime(shown, off)} ${weekdayName(day)}`;
     if (this.blindHidden && this.blindAxisLang !== getLang()) {

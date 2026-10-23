@@ -78,6 +78,7 @@ import {
   type PaneIndicatorConfig,
 } from './indicator-prefs.js';
 import { t } from './i18n.js';
+import { fromDisplayWall, toDisplayWall } from './display-time.js';
 import { getSettings } from './settings.js';
 import { el } from './format.js';
 
@@ -532,7 +533,7 @@ export class PriceChart {
         param.point === undefined
           ? null
           : param.time !== undefined
-            ? Number(param.time) - this.timeShiftSeconds
+            ? this.fromTs(Number(param.time))
             : this.timeAt(param.point.x);
       if (param.point === undefined || time === null) {
         this.crosshair = null;
@@ -570,7 +571,7 @@ export class PriceChart {
         r.to >= n - 1
           ? lastShown + (r.to - (n - 1)) * this.barSeconds
           : Number(data[Math.max(0, Math.round(r.to))]!.time);
-      handler(t - this.timeShiftSeconds);
+      handler(this.fromTs(t));
     });
   }
 
@@ -592,7 +593,12 @@ export class PriceChart {
   }
 
   private ts(time: number): UTCTimestamp {
-    return (time + this.timeShiftSeconds) as UTCTimestamp;
+    return toDisplayWall(time + this.timeShiftSeconds) as UTCTimestamp;
+  }
+
+  /** Inverse of ts(): a chart time back to real Unix seconds. */
+  private fromTs(shown: number): number {
+    return fromDisplayWall(shown) - this.timeShiftSeconds;
   }
 
   private volColor(b: Bar): string {
@@ -777,8 +783,8 @@ export class PriceChart {
     const i = Math.round(logical);
     const lastShown = Number(data[data.length - 1]!.time);
     if (i >= data.length - 1)
-      return lastShown + (i - (data.length - 1)) * this.barSeconds - this.timeShiftSeconds;
-    return Number(data[Math.max(0, i)]!.time) - this.timeShiftSeconds;
+      return this.fromTs(lastShown + (i - (data.length - 1)) * this.barSeconds);
+    return this.fromTs(Number(data[Math.max(0, i)]!.time));
   }
 
   private yOf(price: number): number | null {

@@ -170,6 +170,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.go': '前往',
   'pr.tf': '时间框',
   'pr.split': '双图表',
+  'pr.taipeiTime': '台湾时间',
   'pr.hline': '水平线',
   'pr.tline': '趋势线',
   'pr.textTool': '文字',

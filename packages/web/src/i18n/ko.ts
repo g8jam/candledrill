@@ -177,6 +177,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.go': '이동',
   'pr.tf': '시간봉',
   'pr.split': '두 차트',
+  'pr.taipeiTime': '대만 시간',
   'pr.hline': '수평선',
   'pr.tline': '추세선',
   'pr.textTool': '텍스트',

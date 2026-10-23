@@ -180,6 +180,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.go': '移動',
   'pr.tf': '時間足',
   'pr.split': '2 画面',
+  'pr.taipeiTime': '台湾時間',
   'pr.hline': '水平線',
   'pr.tline': 'トレンド線',
   'pr.textTool': 'テキスト',

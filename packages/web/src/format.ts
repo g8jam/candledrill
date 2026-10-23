@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { getLang } from './i18n.js';
+import { fromDisplayWall, toDisplayWall } from './display-time.js';
 
 /** Format Unix seconds as exchange-local "YYYY-MM-DD HH:MM" using a fixed offset. */
 export function fmtTime(time: number | null | undefined, utcOffsetMinutes = 0): string {
   if (time === null || time === undefined) return '–';
-  return new Date((time + utcOffsetMinutes * 60) * 1000)
+  return new Date(toDisplayWall(time + utcOffsetMinutes * 60) * 1000)
     .toISOString()
     .slice(0, 16)
     .replace('T', ' ');
@@ -12,13 +13,13 @@ export function fmtTime(time: number | null | undefined, utcOffsetMinutes = 0): 
 
 /** Value for <input type="datetime-local"> in exchange-local time. */
 export function toLocalInput(time: number, utcOffsetMinutes = 0): string {
-  return new Date((time + utcOffsetMinutes * 60) * 1000).toISOString().slice(0, 16);
+  return new Date(toDisplayWall(time + utcOffsetMinutes * 60) * 1000).toISOString().slice(0, 16);
 }
 
 /** Parse <input type="datetime-local"> (exchange-local) back to Unix seconds. */
 export function fromLocalInput(value: string, utcOffsetMinutes = 0): number {
   const ms = Date.parse(`${value}:00Z`);
-  return Number.isNaN(ms) ? Number.NaN : ms / 1000 - utcOffsetMinutes * 60;
+  return Number.isNaN(ms) ? Number.NaN : fromDisplayWall(ms / 1000) - utcOffsetMinutes * 60;
 }
 
 const MONEY_LOCALE: Record<ReturnType<typeof getLang>, string> = {
