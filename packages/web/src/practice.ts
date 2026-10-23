@@ -867,7 +867,7 @@ export class PracticeView {
     });
     indBtn.setAttribute('aria-expanded', 'false');
     indBtn.setAttribute('data-testid', 'indicators-toggle');
-    chart.onClick((c) => this.onChartClick(pane, c.time, c.price));
+    chart.onClick((c) => this.onChartClick(pane, c.time, c.price, c.shift));
     chart.setPositionLabeler((d) => this.positionLabel(d));
     chart.onDrawingEdit(
       (d) => void this.saveDrawings(this.drawings.map((x) => (x.id === d.id ? d : x))),
@@ -978,7 +978,12 @@ export class PracticeView {
     return bucketStart(time, p.tf, this.aggOpts());
   }
 
-  protected onChartClick(_p: ChartPane, time: number | null, price: number | null): void {
+  protected onChartClick(
+    _p: ChartPane,
+    time: number | null,
+    price: number | null,
+    shift = false,
+  ): void {
     if (time !== null) time = this.snap(_p, time);
     if (price === null) return;
     const tick = this.meta!.settings.tickSize;
@@ -1056,7 +1061,8 @@ export class PracticeView {
         kind === 'channel'
           ? // Default width: 1% of price, user drags the middle handle to adjust.
             { kind, id, t1, p1: a.price, t2, p2: px, w: roundToTick(a.price * 0.01, tick) || tick }
-          : { kind, id, t1, p1: a.price, t2, p2: px };
+          : // Shift keeps a trendline horizontal.
+            { kind, id, t1, p1: a.price, t2, p2: shift && kind === 'tline' ? a.price : px };
       void this.saveDrawings([...this.drawings, next]);
       return;
     }

@@ -277,6 +277,7 @@ export function measureText(
 export interface ChartClick {
   time: number | null; // real Unix seconds of the bar under the cursor
   price: number | null;
+  shift: boolean;
 }
 
 /** OHLC legend in the active language. Same numbers, new labels, after a locale change. */
@@ -351,6 +352,7 @@ export class PriceChart {
   private freehandDone: (() => void) | undefined = undefined;
   private pendingAnchor: { t: number; p: number } | null = null;
   private crosshair: { t: number; p: number } | null = null;
+  private shiftDown = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -430,7 +432,18 @@ export class PriceChart {
     this.overlay = svg('svg', { class: 'draw-overlay', 'data-testid': 'draw-overlay' });
     this.styleBar = elStyleBar();
     container.append(this.overlay, this.styleBar, this.legend);
+    window.addEventListener('keydown', this.onShiftKey);
+    window.addEventListener('keyup', this.onShiftKey);
   }
+
+  /** Track Shift so the trendline rubber-band turns horizontal without a mouse move. */
+  private readonly onShiftKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'Shift' || this.shiftDown === (e.type === 'keydown')) return;
+    this.shiftDown = e.type === 'keydown';
+    if (!this.pendingAnchor) return;
+    this.overlaySig = '';
+    this.renderOverlay();
+  };
 
   private readonly legend: HTMLElement;
   private renderLegend(b: { open: number; high: number; low: number; close: number } | null): void {
@@ -1291,7 +1304,8 @@ export class PriceChart {
       const x1 = this.xOf(this.pendingAnchor.t);
       const y1 = this.yOf(this.pendingAnchor.p);
       const x2 = this.xOf(this.crosshair.t);
-      const y2 = this.yOf(this.crosshair.p);
+      // Shift keeps the line horizontal.
+      const y2 = this.yOf(this.shiftDown ? this.pendingAnchor.p : this.crosshair.p);
       if (x1 != null && y1 != null && x2 != null && y2 != null) {
         nodes.push(
           svg('line', {
@@ -1372,14 +1386,15 @@ export class PriceChart {
       const p = this.priceAt(e.clientY - rect.top, e.clientX - rect.left);
       if (t === null || p === null || !this.drag) return;
       moved = true;
-      const next = this.dragged(
-        this.drag.start,
-        this.drag.part,
-        t,
-        p,
-        t - this.drag.t0,
-        p - this.drag.p0,
-      );
+      const { start, part } = this.drag;
+      // Shift keeps a trendline horizontal while dragging one of its ends.
+      const point =
+        e.shiftKey && start.kind === 'tline' && (part === 'p1' || part === 'p2')
+          ? part === 'p1'
+            ? start.p2
+            : start.p1
+          : p;
+      const next = this.dragged(start, part, t, point, t - this.drag.t0, p - this.drag.p0);
       this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
       this.overlaySig = '';
       this.renderOverlay();
@@ -1708,7 +1723,7 @@ export class PriceChart {
         if (x > plotW) return;
         const price = getSettings().magnet ? this.priceAt(y, x) : this.candles.coordinateToPrice(y);
         const time = this.timeAt(x);
-        handler({ time, price: price === null ? null : Number(price) });
+        handler({ time, price: price === null ? null : Number(price), shift: e.shiftKey });
       },
       true,
     );
@@ -2295,6 +2310,8 @@ export class PriceChart {
 
   destroy(): void {
     this.clearBarContextHold();
+    window.removeEventListener('keydown', this.onShiftKey);
+    window.removeEventListener('keyup', this.onShiftKey);
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.overlay.remove();
