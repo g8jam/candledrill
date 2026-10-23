@@ -366,6 +366,7 @@ export class PriceChart {
   private crosshair: { t: number; p: number } | null = null;
   private shiftDown = false;
   private drawingsLoaded = false;
+  private drawingMode = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -479,6 +480,20 @@ export class PriceChart {
     this.overlaySig = '';
     this.renderOverlay();
   };
+
+  /**
+   * While a drawing tool is active the crosshair is drawn on the overlay at the point the
+   * next click will place (bar time, magnet price), also right of the last bar where the
+   * library crosshair has nothing to show. The library's own lines are hidden meanwhile.
+   */
+  setDrawingMode(on: boolean): void {
+    this.drawingMode = on;
+    this.chart.applyOptions({
+      crosshair: { vertLine: { visible: !on }, horzLine: { visible: !on } },
+    });
+    this.overlaySig = '';
+    this.renderOverlay();
+  }
 
   /** Track Shift so the trendline rubber-band turns horizontal without a mouse move. */
   private readonly onShiftKey = (e: KeyboardEvent): void => {
@@ -1482,6 +1497,22 @@ export class PriceChart {
         }
       }
     });
+    if (this.drawingMode && this.crosshair) {
+      const x = this.xOf(this.crosshair.t);
+      const y = this.yOf(
+        this.shiftDown && this.pendingAnchor ? this.pendingAnchor.p : this.crosshair.p,
+      );
+      const style = {
+        stroke: withAlpha(this.theme.text, 0.6),
+        'stroke-width': 1,
+        'stroke-dasharray': '4 4',
+        'pointer-events': 'none',
+        'data-kind': 'draw-crosshair',
+      };
+      if (x !== null)
+        nodes.push(svg('line', { x1: x, x2: x, y1: 0, y2: this.overlay.clientHeight, ...style }));
+      if (y !== null) nodes.push(svg('line', { x1: 0, x2: plotW, y1: y, y2: y, ...style }));
+    }
     // Rubber-band for trendline / arrow while waiting for the second click.
     if (this.pendingAnchor && this.crosshair) {
       const x1 = this.xOf(this.pendingAnchor.t);

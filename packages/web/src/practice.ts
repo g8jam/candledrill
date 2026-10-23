@@ -659,6 +659,7 @@ export class PracticeView {
     for (const p of this.panes) p.chart.setPendingAnchor(null);
     this.els.charts?.classList.toggle('drawing', mode !== null);
     for (const p of this.palettes) p.setActive(mode);
+    for (const p of this.panes) p.chart.setDrawingMode(mode !== null);
     // Drawing while drawings are hidden would be invisible: show them again.
     if (mode !== null && this.drawingsHidden) this.setDrawingsHidden(false);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
@@ -924,6 +925,7 @@ export class PracticeView {
     chart.setBarSeconds(tf);
     chart.setBlindAxis(this.blindHidden);
     chart.setIndicators(this.indicatorConfig, this.aggOpts());
+    chart.setDrawingMode(this.drawMode !== null);
     const palette = new DrawingPalette(body, {
       select: (tool) => this.setDrawMode(tool),
       clear: () => void this.saveDrawings([]),
