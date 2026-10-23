@@ -457,7 +457,29 @@ export class PriceChart {
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
+    // Capture phase, so the library never turns this wheel into a time-axis zoom.
+    container.addEventListener('wheel', this.onPriceAxisWheel, { capture: true, passive: false });
   }
+
+  /**
+   * Mouse wheel over the price scale stretches or squashes the price range around the
+   * price under the cursor (down: zoom out, up: zoom in), like dragging the scale.
+   * Double-clicking the scale still returns to auto-fit.
+   */
+  private readonly onPriceAxisWheel = (e: WheelEvent): void => {
+    const rect = this.container.getBoundingClientRect();
+    const plotW = rect.width - this.chart.priceScale('right').width();
+    if (e.clientX - rect.left <= plotW || e.deltaY === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const scale = this.candles.priceScale();
+    const range = scale.getVisibleRange();
+    const anchor = this.candles.coordinateToPrice(e.clientY - rect.top);
+    if (!range || anchor === null) return;
+    const f = Math.exp(Math.max(-100, Math.min(100, e.deltaY)) * 0.002);
+    const p = Number(anchor);
+    scale.setVisibleRange({ from: p + (range.from - p) * f, to: p + (range.to - p) * f });
+  };
 
   /** Which position tool the mouse is over; re-render only when that changes. */
   private readonly onHover = (e: PointerEvent): void => {
