@@ -1305,3 +1305,7 @@ a#tv-attr-logo svg {
     animation: none;
   }
 }
+.chart-cell .chart-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}

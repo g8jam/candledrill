@@ -60,7 +60,7 @@ import { practiceClockText } from './clock.js';
 import { mountCountdown, takeCountdownPending } from './countdown.js';
 import type { SessionCountdown } from './countdown.js';
 import { getLang, t, type MessageKey } from './i18n.js';
-import { statusReasonText } from './labels.js';
+import { statusReasonText, weekdayName } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 import { RulesView } from './rules-view.js';
 import { RulesStrip } from './rules-strip.js';
@@ -829,6 +829,7 @@ export class PracticeView {
       'div',
       { class: 'chart-head' },
       select,
+      el('span', { class: 'chart-clock' }),
       el('span', { class: 'spacer' }),
       indBtn,
     );
@@ -1685,33 +1686,55 @@ export class PracticeView {
     return toClose + n * perBar;
   }
 
-  /** Step `n` practice bars (the buttons, keys and play all count in practice bars). */
+  /**
+   * Step `n` bars (the buttons, keys and play all go through here). Normally these are
+   * practice bars. When the main chart shows a longer timeframe, `n` bars of that chart:
+   * each press ends on the close of the next chart bar, whatever the gaps in the data.
+   */
   async stepBars(n: number): Promise<void> {
     if (this.liveSim) {
       await this.advanceLive(n * DEFAULT_TICKS_PER_BAR);
       return;
     }
-    await this.step(this.practiceSteps(n));
+    const tf = this.panes[0]?.tf ?? this.baseTf;
+    const ptf = this.meta?.settings.practiceTimeframeSeconds ?? this.baseTf;
+    if (tf > Math.max(ptf, this.baseTf)) return this.step(1, { tf, bars: n });
+    // The step route accepts at most 5000 source bars per call.
+    await this.step(Math.min(this.practiceSteps(n), 5000));
   }
 
-  async step(count: number): Promise<void> {
+  async step(count: number, chart?: { tf: number; bars: number }): Promise<void> {
     if (!this.meta || this.inFlight || this.presentTimer) return;
     const generation = this.generation;
     this.inFlight = true;
     const before = this.state;
     try {
-      const r = await sessionsApi.step(this.meta.id, count);
+      let r = await sessionsApi.step(this.meta.id, count);
       if (generation !== this.generation) return;
+      const revealed = [...r.revealed];
+      const last = revealed.at(-1);
+      // Chart-timeframe step: after one source bar (so gaps never stall), jump to the last
+      // source bar of the `bars`-th chart bucket.
+      if (chart && last && r.state.status !== 'finished') {
+        const end =
+          bucketStart(last.time, chart.tf, this.aggOpts()) + chart.bars * chart.tf - this.baseTf;
+        if (end > last.time) {
+          const j = await sessionsApi.jump(this.meta.id, end);
+          if (generation !== this.generation) return;
+          revealed.push(...j.revealed);
+          r = j;
+        }
+      }
       // This snapshot wins over edits still in flight. Stop management runs
       // before inFlight clears, and the forming timer never writes session state again.
       this.claimView();
       if (before && !this.blindHidden) this.pushUndoState(before);
-      this.pushBars(r.revealed);
+      this.pushBars(revealed);
       if (before) this.recordAdvance(before, r.state);
       this.applyView(r);
       if (generation !== this.generation) return;
-      this.presentChart(r.revealed);
-      if (r.revealed.length > 0) {
+      this.presentChart(revealed);
+      if (revealed.length > 0) {
         await this.manageStop();
       }
       if (generation !== this.generation) return;
@@ -1899,7 +1922,7 @@ export class PracticeView {
       const bars = n;
       this.carry -= bars;
       // The step route accepts at most 5000 source bars per call.
-      void this.step(Math.min(this.practiceSteps(bars), 5000));
+      void this.stepBars(bars);
     }, TICK_MS);
     this.renderPlay();
   }
@@ -2248,6 +2271,14 @@ export class PracticeView {
       utcOffsetMinutes: off,
       blind,
     });
+    // Blind practice keeps the real date hidden, so the chart label is only shown otherwise.
+    const shown =
+      blind?.revealed && blind.timeShift !== undefined
+        ? this.cursorTime - blind.timeShift
+        : this.cursorTime;
+    const day = new Date((shown + off * 60) * 1000).getUTCDay();
+    for (const c of this.els.charts!.querySelectorAll<HTMLElement>('.chart-clock'))
+      c.textContent = this.blindHidden ? '' : `${fmtTime(shown, off)} ${weekdayName(day)}`;
     if (this.blindHidden && this.blindAxisLang !== getLang()) {
       this.blindAxisLang = getLang();
       for (const pane of this.panes) pane.chart.setBlindAxis(true);
