@@ -40,6 +40,12 @@ export class SidePanel {
   private type: OrderType = DEFAULT_ORDER_TYPE;
   private readonly typeButtons = new Map<OrderType, HTMLButtonElement>();
   private readonly qty: HTMLInputElement;
+
+  /** Order-ticket quantity (1 when empty or invalid). */
+  get quantity(): number {
+    const n = Number(this.qty.value);
+    return Number.isInteger(n) && n > 0 ? n : 1;
+  }
   private readonly price: HTMLInputElement;
   private readonly sl: HTMLInputElement;
   private readonly tp: HTMLInputElement;

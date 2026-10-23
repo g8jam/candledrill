@@ -59,8 +59,8 @@ describe('blind clock', () => {
       expect(value, key).not.toMatch(/K 線/);
       expect(value, key).not.toMatch(/\btick\b/i);
     }
-    expect(zhHant['pr.longTool']).toBe('好倉 R');
-    expect(zhHant['pr.shortTool']).toBe('淡倉 R');
+    expect(zhHant['pr.longTool']).toBe('多頭倉位');
+    expect(zhHant['pr.shortTool']).toBe('空頭倉位');
     expect(zhHant['pr.sl']).toContain('跳');
     expect(zhHant['col.rNa']).toBe('不適用：這筆交易有入場未設止蝕，無法計算 R');
     expect(zhHant['lib.previewHint']).toBe(

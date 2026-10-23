@@ -246,9 +246,7 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
   await page.getByTestId('palette-long').first().click();
   await page.mouse.click(cx, cy);
   await expect(page.locator('[data-kind=risk]')).toHaveCount(1);
-  await expect(page.locator('[data-testid^=rlabel-]')).toContainText(
-    /Long · risk 20 ticks .* reward 40 ticks · 2\.00R/,
-  );
+  await expect(page.locator('[data-testid^=rlabel-]')).toContainText(/Risk\/Reward Ratio: 2\.00/);
 
   let v = await sessionByName(page, 'Draw e2e');
   const pos = v.session.drawings[0];

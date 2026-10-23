@@ -168,6 +168,14 @@ export function bracketMarkerSize(coarse: boolean): { w: number; h: number } {
   return coarse ? { w: 88, h: 44 } : { w: 72, h: 28 };
 }
 
+/** Texts for the long / short position tool, as TradingView shows them. */
+export interface PositionLabels {
+  target: string;
+  stop: string;
+  center: string[];
+  profit: boolean;
+}
+
 export interface MarkerSpec {
   time: number; // real (unshifted) Unix seconds, already snapped to this chart's bars
   side: 'buy' | 'sell';
@@ -323,7 +331,7 @@ export class PriceChart {
     null;
   private editHandler: ((d: Drawing) => void) | undefined;
   private deleteHandler: ((id: string) => void) | undefined;
-  private labeler: ((d: Extract<Drawing, { kind: 'position' }>) => string) | undefined;
+  private labeler: ((d: Extract<Drawing, { kind: 'position' }>) => PositionLabels) | undefined;
   private orderLineSpecs: PriceLineSpec[] = [];
   private orderLineById = new Map<number, IPriceLine>();
   private orderDragHandler: ((orderId: number, price: number) => Promise<void>) | undefined;
@@ -725,7 +733,7 @@ export class PriceChart {
   onDrawingDelete(handler: (id: string) => void): void {
     this.deleteHandler = handler;
   }
-  setPositionLabeler(fn: (d: Extract<Drawing, { kind: 'position' }>) => string): void {
+  setPositionLabeler(fn: (d: Extract<Drawing, { kind: 'position' }>) => PositionLabels): void {
     this.labeler = fn;
   }
   get selectedDrawing(): string | null {
@@ -1369,16 +1377,36 @@ export class PriceChart {
           }),
         );
         if (this.labeler) {
-          const text = this.labeler(d);
-          // Keep the label inside the plot (rough width estimate; no layout pass needed).
-          const lx = Math.max(4, Math.min(left + 4, plotW - text.length * 6.2 - 4));
-          const label = svg('text', {
-            x: lx,
-            y: Math.max(12, Math.min(ys, yt) - 4),
-            'data-testid': `rlabel-${d.id}`,
-          });
-          label.textContent = text;
-          nodes.push(label);
+          const lb = this.labeler(d);
+          const cx = left + width / 2;
+          // Rough width: CJK glyphs are about twice as wide as Latin ones at 12px.
+          const textW = (s: string) =>
+            [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 12 : 6.8), 0);
+          const box = (lines: string[], yTop: number, fill: string, testid?: string) => {
+            const w = Math.max(...lines.map(textW)) + 14;
+            const h = lines.length * 16 + 6;
+            const x = Math.max(4, Math.min(cx - w / 2, plotW - w - 4));
+            nodes.push(svg('rect', { x, y: yTop, width: w, height: h, rx: 4, fill }));
+            const tx = svg('text', {
+              x: x + w / 2,
+              y: yTop + 15,
+              fill: '#ffffff',
+              'font-size': '12px',
+              'text-anchor': 'middle',
+              ...(testid ? { 'data-testid': testid } : {}),
+            });
+            lines.forEach((line, i) => {
+              const span = svg('tspan', { x: x + w / 2, dy: i === 0 ? 0 : 16 });
+              span.textContent = line;
+              tx.append(span);
+            });
+            nodes.push(tx);
+          };
+          // Target and stop labels sit just outside their zones, away from the entry.
+          const outside = (y: number) => (y < ye ? y - 26 : y + 4);
+          box([lb.target], outside(yt), this.theme.up);
+          box([lb.stop], outside(ys), this.theme.down);
+          box(lb.center, ye + 6, lb.profit ? this.theme.up : this.theme.down, `rlabel-${d.id}`);
         }
         handle(d, 'body', left + width / 2, ye, true);
         handle(d, 'entry', left, ye);
