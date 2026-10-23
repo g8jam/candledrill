@@ -1379,6 +1379,17 @@ export class PriceChart {
               'stroke-width': 1,
               'data-kind': 'rect',
             }),
+            // 50% line, dashed, as TradingView's rectangle middle line.
+            svg('line', {
+              x1: Math.min(x1, x2),
+              x2: Math.max(x1, x2),
+              y1: (y1 + y2) / 2,
+              y2: (y1 + y2) / 2,
+              stroke: accent,
+              'stroke-width': 1,
+              'stroke-dasharray': '6 4',
+              'data-kind': 'rect-mid',
+            }),
           );
         handle(d, 'p1', x1, y1);
         handle(d, 'p2', x2, y2);
