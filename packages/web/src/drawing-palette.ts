@@ -5,6 +5,7 @@
 import * as overlays from './overlays.js';
 import { t, type MessageKey } from './i18n.js';
 import { el } from './format.js';
+import { getSettings, onSettings, saveSettings } from './settings.js';
 
 /** Phone / short-screen layout (the tools become a bottom sheet there, see phone.css). */
 export const PaletteLayout = {
@@ -72,6 +73,7 @@ export class DrawingPalette {
   private buttons = new Map<PaletteTool, HTMLButtonElement>();
   private active: PaletteTool = null;
   private expanded: boolean;
+  private offSettings: () => void = () => undefined;
 
   constructor(
     container: HTMLElement,
@@ -127,6 +129,27 @@ export class DrawingPalette {
       this.buttons.set(key, b);
       this.toolsEl.append(b);
     }
+
+    // Shortcut for the Settings magnet (snap drawing points to the bar's open/high/low/close).
+    const magnetBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small',
+        title: t('pr.magnet'),
+        'data-testid': 'palette-magnet',
+        'data-i18n': 'pr.magnet',
+        'data-i18n-title': 'pr.magnet',
+      },
+      t('pr.magnet'),
+    );
+    const syncMagnet = () => magnetBtn.setAttribute('aria-pressed', String(getSettings().magnet));
+    syncMagnet();
+    this.offSettings = onSettings(syncMagnet);
+    magnetBtn.addEventListener('click', () =>
+      saveSettings({ ...getSettings(), magnet: !getSettings().magnet }),
+    );
+    this.toolsEl.append(magnetBtn);
 
     const clear = el(
       'button',
@@ -209,6 +232,7 @@ export class DrawingPalette {
   }
 
   destroy(): void {
+    this.offSettings();
     this.root.remove();
   }
 }

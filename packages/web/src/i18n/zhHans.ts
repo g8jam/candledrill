@@ -170,6 +170,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.go': '前往',
   'pr.tf': '时间框',
   'pr.split': '双图表',
+  'pr.magnet': '磁铁',
   'pr.sideHide': '收起侧栏',
   'pr.sideShow': '展开侧栏',
   'pr.undo': '撤销画图（Ctrl+Z）',

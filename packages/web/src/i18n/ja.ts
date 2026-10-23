@@ -180,6 +180,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.go': '移動',
   'pr.tf': '時間足',
   'pr.split': '2 画面',
+  'pr.magnet': 'マグネット',
   'pr.sideHide': 'サイドパネルを閉じる',
   'pr.sideShow': 'サイドパネルを開く',
   'pr.undo': '描画を元に戻す（Ctrl+Z）',
