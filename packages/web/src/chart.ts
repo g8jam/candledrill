@@ -370,6 +370,7 @@ export class PriceChart {
   private blindAxis = false;
   private dynSig = '';
   private readonly dynLayer = svg('g', { class: 'overlay-dynamic' });
+  private readonly axisLayer = svg('g', { class: 'overlay-future-axis' });
 
   constructor(
     private readonly container: HTMLElement,
@@ -450,6 +451,7 @@ export class PriceChart {
     this.styleBar = elStyleBar();
     container.append(this.overlay, this.styleBar, this.legend);
     window.addEventListener('keydown', this.onShiftKey);
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.renderFutureAxis());
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
@@ -1551,6 +1553,58 @@ export class PriceChart {
     this.renderedOverlay(nodes, plotW, w);
   }
 
+  /**
+   * Time labels right of the last bar. The library only labels times that have data, so
+   * the empty future area gets clock-aligned labels drawn here in the time-axis row.
+   */
+  private renderFutureAxis(): void {
+    const n = this.indicatorBars.length;
+    const tsApi = this.timeScale();
+    const range = tsApi.getVisibleLogicalRange();
+    if (!this.axisLayer.isConnected) this.overlay.append(this.axisLayer);
+    if (n === 0 || !range || range.to <= n - 1) {
+      this.axisLayer.replaceChildren();
+      return;
+    }
+    const lastShown = Number(this.ts(this.indicatorBars[n - 1]!.time));
+    const xLast = tsApi.logicalToCoordinate((n - 1) as Logical);
+    const xNext = tsApi.logicalToCoordinate(n as Logical);
+    if (xLast === null || xNext === null) return;
+    const pxPerBar = Math.max(0.01, xNext - xLast);
+    const steps = [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400, 604800];
+    const step =
+      steps.find((s) => s >= this.barSeconds && (s / this.barSeconds) * pxPerBar >= 70) ??
+      steps.at(-1)!;
+    const plotW = this.overlay.clientWidth - this.chart.priceScale('right').width();
+    const axisH = tsApi.height();
+    const y = this.overlay.clientHeight - axisH / 2 + 4;
+    const end = lastShown + (range.to - (n - 1)) * this.barSeconds;
+    const nodes: SVGElement[] = [];
+    for (let t = Math.ceil((lastShown + this.barSeconds) / step) * step; t <= end; t += step) {
+      const x = tsApi.logicalToCoordinate((n - 1 + (t - lastShown) / this.barSeconds) as Logical);
+      // Keep clear of the library's own label on the last bar and of the price scale.
+      if (x === null || x < xLast + 40 || x > plotW - 20) continue;
+      const d = new Date(t * 1000);
+      const midnight = t % 86_400 === 0;
+      const text = !midnight
+        ? d.toISOString().slice(11, 16)
+        : this.blindAxis
+          ? weekdayName(d.getUTCDay())
+          : `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      const label = svg('text', {
+        x,
+        y,
+        'font-size': '11px',
+        'text-anchor': 'middle',
+        style: `fill: ${this.theme.text}; stroke: none`,
+        'data-kind': 'future-time',
+      });
+      label.textContent = text;
+      nodes.push(label);
+    }
+    this.axisLayer.replaceChildren(...nodes);
+  }
+
   /** Crosshair while drawing and the trendline rubber-band: redrawn on every mouse move. */
   private renderDynamic(plotW: number): void {
     const sig = `${plotW}|${this.drawingMode}|${this.shiftDown}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}`;
@@ -1635,7 +1689,8 @@ export class PriceChart {
       h.addEventListener('pointerdown', (ev) => this.startOrderDrag(ev, orderId));
       orderGroup.append(h);
     }
-    this.overlay.replaceChildren(defs, g, orderGroup, this.dynLayer);
+    this.overlay.replaceChildren(defs, g, orderGroup, this.dynLayer, this.axisLayer);
+    this.renderFutureAxis();
     this.dynSig = '';
     this.renderDynamic(plotW);
   }
