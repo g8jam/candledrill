@@ -204,6 +204,9 @@ export class PracticeView {
   private indicatorPanels: IndicatorPanel[] = [];
   private palettes: DrawingPalette[] = [];
   private drawingsHidden = loadDrawingsHidden();
+  /** Drawing snapshots for undo / redo (drawings only; fills cannot be undone). */
+  private undoStack: Drawing[][] = [];
+  private redoStack: Drawing[][] = [];
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
   /** Engine states before each action, newest last (rewind). */
@@ -424,6 +427,18 @@ export class PracticeView {
       this.linkCharts = linkBox.checked;
       localStorage.setItem('candledrill.link', this.linkCharts ? '1' : '0');
     });
+    const iconBtn = (key: MessageKey, icon: string, testid: string) =>
+      el(
+        'button',
+        { type: 'button', title: t(key), 'aria-label': t(key), 'data-testid': testid },
+        icon,
+      );
+    const undo = iconBtn('pr.undo', '↶', 'btn-undo');
+    const redo = iconBtn('pr.redo', '↷', 'btn-redo');
+    undo.addEventListener('click', () => void this.undoDrawing());
+    redo.addEventListener('click', () => void this.redoDrawing());
+    this.undoStack = [];
+    this.redoStack = [];
     const tpe = el('label', { class: 'row muted' });
     const tpeBox = el('input', { type: 'checkbox', 'data-testid': 'taipei-time' });
     tpeBox.checked = taipeiTime.on;
@@ -482,6 +497,8 @@ export class PracticeView {
       returnLive,
       reviewStatus,
       el('span', { class: 'sep tb-wide' }),
+      el('span', { class: 'tb-wide row' }, undo, redo),
+      el('span', { class: 'sep tb-wide' }),
       el('span', { class: 'row tb-split' }, split),
       el('span', { class: 'tb-wide row' }, link, tpe),
       el('span', { class: 'spacer' }),
@@ -538,8 +555,11 @@ export class PracticeView {
       ...(this.els.simToggle ? { simToggle: this.els.simToggle } : {}),
       ...(this.els.simBadge ? { simBadge: this.els.simBadge } : {}),
       ...(this.els.simNote ? { simNote: this.els.simNote } : {}),
+      undo,
+      redo,
     };
     split.addEventListener('click', () => this.toggleSplit());
+    this.syncUndo();
     this.rulesView = new RulesView();
     this.rulesView.setProfile(sessionProfile(m.id));
     this.checkpoints = loadCheckpoints(m.id);
@@ -881,18 +901,57 @@ export class PracticeView {
     return key ? t(key) : d.kind;
   }
 
-  private async saveDrawings(next: Drawing[]): Promise<void> {
-    if (!this.meta) return;
+  /** Save drawings; `record` keeps the previous set for undo (undo / redo pass false). */
+  private async saveDrawings(next: Drawing[], record = true): Promise<boolean> {
+    if (!this.meta) return false;
     const generation = this.generation;
+    const prev = this.drawings;
     try {
       const r = await sessionsApi.saveDrawings(this.meta.id, next);
-      if (generation !== this.generation) return;
+      if (generation !== this.generation) return false;
       this.drawings = r.drawings as Drawing[];
+      if (record) {
+        this.undoStack.push(prev);
+        if (this.undoStack.length > 100) this.undoStack.shift();
+        this.redoStack = [];
+      }
       this.renderDrawings();
+      this.syncUndo();
+      return true;
     } catch (err) {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation) return false;
       toast((err as Error).message, 'error');
+      return false;
     }
+  }
+
+  private async undoDrawing(): Promise<void> {
+    const prev = this.undoStack.pop();
+    if (!prev) return;
+    const current = this.drawings;
+    if (await this.saveDrawings(prev, false)) this.redoStack.push(current);
+    else this.undoStack.push(prev);
+    this.syncUndo();
+  }
+
+  private async redoDrawing(): Promise<void> {
+    const next = this.redoStack.pop();
+    if (!next) return;
+    const current = this.drawings;
+    if (await this.saveDrawings(next, false)) this.undoStack.push(current);
+    else this.redoStack.push(next);
+    this.syncUndo();
+  }
+
+  private syncUndo(): void {
+    (this.els.undo as HTMLButtonElement | undefined)?.toggleAttribute(
+      'disabled',
+      this.undoStack.length === 0,
+    );
+    (this.els.redo as HTMLButtonElement | undefined)?.toggleAttribute(
+      'disabled',
+      this.redoStack.length === 0,
+    );
   }
 
   private addPane(tf: number): void {
@@ -2487,6 +2546,11 @@ export class PracticeView {
         e.preventDefault();
         this.intro.skip();
       }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+      e.preventDefault();
+      void (e.key === 'y' || e.shiftKey ? this.redoDrawing() : this.undoDrawing());
       return;
     }
     if (e.key === 'Escape') {

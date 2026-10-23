@@ -177,6 +177,8 @@ export const ko: Record<MessageKey, string> = {
   'pr.go': '이동',
   'pr.tf': '시간봉',
   'pr.split': '두 차트',
+  'pr.undo': '그리기 실행 취소（Ctrl+Z）',
+  'pr.redo': '그리기 다시 실행（Ctrl+Y）',
   'pr.posTarget': '목표: {pts} ({pct}%) {ticks}, 금액: {money}',
   'pr.posStop': '손절: {pts} ({pct}%) {ticks}, 금액: {money}',
   'pr.posOpen': '미실현 손익: {pnl}, 수량: {qty}',
