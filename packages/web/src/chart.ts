@@ -1441,7 +1441,7 @@ export class PriceChart {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
         if (d.kind === 'tline')
-          nodes.push(svg('line', { x1, y1, x2, y2, stroke: accent, 'stroke-width': 2 }));
+          nodes.push(svg('line', { x1, y1, x2, y2, stroke: accent, 'stroke-width': 1 }));
         else
           nodes.push(
             svg('rect', {
