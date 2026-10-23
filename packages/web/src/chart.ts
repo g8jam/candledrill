@@ -264,7 +264,23 @@ export function arrowHeadPath(x: number, y: number, angle: number, size = 12): s
   return `M${x} ${y} L${x + size * Math.cos(a1)} ${y + size * Math.sin(a1)} L${x + size * Math.cos(a2)} ${y + size * Math.sin(a2)} Z`;
 }
 
-type DragPart = 'p1' | 'p2' | 'body' | 'price' | 'entry' | 'stop' | 'target' | 't2' | 'w';
+type DragPart =
+  | 'p1'
+  | 'p2'
+  | 'body'
+  | 'price'
+  | 'entry'
+  | 'stop'
+  | 'target'
+  | 't2'
+  | 'w'
+  // Rectangle: the other two corners and the four edge midpoints.
+  | 'c12'
+  | 'c21'
+  | 'edgeT1'
+  | 'edgeT2'
+  | 'edgeP1'
+  | 'edgeP2';
 
 /** Fibonacci retracement levels drawn between the two anchors. */
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
@@ -1468,7 +1484,18 @@ export class PriceChart {
           );
         handle(d, 'p1', x1, y1);
         handle(d, 'p2', x2, y2);
-        handle(d, 'body', (x1 + x2) / 2, (y1 + y2) / 2, true);
+        if (d.kind === 'rect') {
+          // Corners resize both ways; edge midpoints move one side only (dragging inside
+          // the box moves it).
+          const mx = (x1 + x2) / 2;
+          const my = (y1 + y2) / 2;
+          handle(d, 'c12', x1, y2);
+          handle(d, 'c21', x2, y1);
+          handle(d, 'edgeT1', x1, my);
+          handle(d, 'edgeT2', x2, my);
+          handle(d, 'edgeP1', mx, y1);
+          handle(d, 'edgeP2', mx, y2);
+        } else handle(d, 'body', (x1 + x2) / 2, (y1 + y2) / 2, true);
       } else {
         const [x1, x2, ye, ys, yt] = p;
         if (x1 == null || x2 == null || ye == null || ys == null || yt == null) return;
@@ -1911,6 +1938,12 @@ export class PriceChart {
       if (part === 'p1' && d.kind === 'vline') return { ...d, t1: t, t2: t };
       if (part === 'p1') return { ...d, t1: t, p1: p };
       if (part === 'p2') return { ...d, t2: t, p2: p };
+      if (part === 'c12') return { ...d, t1: t, p2: p };
+      if (part === 'c21') return { ...d, t2: t, p1: p };
+      if (part === 'edgeT1') return { ...d, t1: t };
+      if (part === 'edgeT2') return { ...d, t2: t };
+      if (part === 'edgeP1') return { ...d, p1: p };
+      if (part === 'edgeP2') return { ...d, p2: p };
       return { ...d, t1: d.t1 + dt, t2: d.t2 + dt, p1: shiftP(d.p1), p2: shiftP(d.p2) };
     }
     let n = d;
