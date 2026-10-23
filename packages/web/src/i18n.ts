@@ -97,6 +97,7 @@ const enBase = {
   'pr.revealed':
     'Revealed: {symbol}, real time {start} → {now} (exchange time); chart prices are the real prices {sign}{offset}.',
   'pr.rect': 'Rectangle',
+  'pr.prange': 'Price range',
   'pr.longTool': 'Long R',
   'pr.shortTool': 'Short R',
   'pr.rectHint': 'Click two corners. Esc cancels.',
@@ -603,6 +604,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'pr.revealed':
     '已揭曉：{symbol}，真實時間 {start} → {now}（交易所時間）；圖上價格等於真實價格 {sign}{offset}。',
   'pr.rect': '矩形',
+  'pr.prange': '價格範圍',
   'pr.longTool': '好倉 R',
   'pr.shortTool': '淡倉 R',
   'pr.rectHint': '點擊兩個對角。按 Esc 取消。',

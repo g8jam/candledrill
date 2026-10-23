@@ -803,6 +803,20 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                   {
                     type: 'object',
                     additionalProperties: false,
+                    required: ['kind', 'id', 't1', 'p1', 't2', 'p2'],
+                    properties: {
+                      kind: { const: 'prange' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      t1: { type: 'integer' },
+                      p1: { type: 'number', exclusiveMinimum: 0 },
+                      t2: { type: 'integer' },
+                      p2: { type: 'number', exclusiveMinimum: 0 },
+                      color: { type: 'string', maxLength: 32 },
+                    },
+                  },
+                  {
+                    type: 'object',
+                    additionalProperties: false,
                     required: ['kind', 'id', 't', 'price', 'text'],
                     properties: {
                       kind: { const: 'text' },

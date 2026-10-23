@@ -92,6 +92,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.revealed':
     '公開済：{symbol}、実際の時間 {start} → {now}（取引所時間）。チャートの価格は実際の価格 {sign}{offset} です。',
   'pr.rect': '矩形',
+  'pr.prange': '価格レンジ',
   'pr.longTool': '買い R',
   'pr.shortTool': '売り R',
   'pr.rectHint': '2 つの対角をクリック。Esc でキャンセル。',

@@ -154,7 +154,16 @@ function settingsIssues(s: unknown): string[] {
 }
 
 /** Drawings defined by two anchor points (t1, p1) – (t2, p2), plus an optional colour. */
-const TWO_POINT_KINDS = new Set(['tline', 'rect', 'arrow', 'ray', 'vline', 'fib', 'measure']);
+const TWO_POINT_KINDS = new Set([
+  'tline',
+  'rect',
+  'arrow',
+  'ray',
+  'vline',
+  'fib',
+  'measure',
+  'prange',
+]);
 
 export function drawingIssues(d: unknown): string[] {
   if (!Array.isArray(d)) return ['drawings: not a list'];

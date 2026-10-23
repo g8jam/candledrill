@@ -84,6 +84,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.revealed':
     '已揭晓：{symbol}，真实时间 {start} → {now}（交易所时间）；图上价格等于真实价格 {sign}{offset}。',
   'pr.rect': '矩形',
+  'pr.prange': '价格范围',
   'pr.longTool': '多单 R',
   'pr.shortTool': '空单 R',
   'pr.rectHint': '点击两个对角。按 Esc 取消。',

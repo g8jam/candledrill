@@ -89,6 +89,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.revealed':
     '공개됨: {symbol}, 실제 시간 {start} → {now}(거래소 시간). 차트 가격은 실제 가격 {sign}{offset}입니다.',
   'pr.rect': '사각형',
+  'pr.prange': '가격 범위',
   'pr.longTool': '롱 R',
   'pr.shortTool': '숏 R',
   'pr.rectHint': '두 대각선을 클릭하세요. Esc로 취소.',

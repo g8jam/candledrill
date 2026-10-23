@@ -1052,7 +1052,8 @@ export class PracticeView {
       this.drawMode === 'ray' ||
       this.drawMode === 'fib' ||
       this.drawMode === 'measure' ||
-      this.drawMode === 'channel'
+      this.drawMode === 'channel' ||
+      this.drawMode === 'prange'
     ) {
       if (time === null) return;
       if (!this.pendingPoint) {

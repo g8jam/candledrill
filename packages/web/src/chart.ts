@@ -193,6 +193,7 @@ export type Drawing =
       color?: string;
     }
   | { kind: 'rect'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'prange'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'position';
       id: string;
@@ -1191,6 +1192,67 @@ export class PriceChart {
         }
         if (d.kind !== 'vline') handle(d, 'body', (x1 + x2) / 2, (y1 + y2) / 2, true);
         else handle(d, 'body', x1, 24, true);
+      } else if (d.kind === 'prange') {
+        // TradingView-style price range: band, arrow from start to end, and
+        // "change (percent) ticks" next to the end.
+        const [x1, y1, x2, y2] = p;
+        if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+        const left = Math.min(x1, x2);
+        const right = Math.max(x1, x2);
+        const mid = (left + right) / 2;
+        const color = d.color ?? accent;
+        const diff = d.p2 - d.p1;
+        const dp = tickDecimals(this.tick);
+        const text =
+          `${diff.toFixed(dp)} (${((diff / d.p1) * 100).toFixed(2)}%) ` +
+          `${Math.round(diff / this.tick)}`;
+        const up = y2 < y1;
+        nodes.push(
+          svg('rect', {
+            x: left,
+            y: Math.min(y1, y2),
+            width: Math.max(1, right - left),
+            height: Math.abs(y2 - y1),
+            fill: withAlpha(color, 0.12),
+            'data-kind': 'prange',
+          }),
+          svg('line', { x1: left, x2: right, y1, y2: y1, stroke: color, 'stroke-width': 1 }),
+          svg('line', { x1: left, x2: right, y1: y2, y2, stroke: color, 'stroke-width': 1 }),
+          svg('line', { x1: mid, x2: mid, y1, y2, stroke: color, 'stroke-width': 1 }),
+          svg('path', {
+            d: `M${mid - 6} ${y2 + (up ? 6 : -6)} L${mid} ${y2} L${mid + 6} ${y2 + (up ? 6 : -6)}`,
+            fill: 'none',
+            stroke: color,
+            'stroke-width': 1,
+          }),
+        );
+        const w = text.length * 6.6 + 12;
+        const ly = up ? y2 - 28 : y2 + 8;
+        nodes.push(
+          svg('rect', {
+            x: mid - w / 2,
+            y: ly,
+            width: w,
+            height: 20,
+            rx: 4,
+            fill: this.theme.background,
+            stroke: this.theme.border,
+            'data-kind': 'prange-label',
+          }),
+        );
+        const label = svg('text', {
+          x: mid,
+          y: ly + 14,
+          fill: this.theme.text,
+          'font-size': '12px',
+          'text-anchor': 'middle',
+          'data-testid': `prange-label-${d.id}`,
+        });
+        label.textContent = text;
+        nodes.push(label);
+        handle(d, 'p1', x1, y1);
+        handle(d, 'p2', x2, y2);
+        handle(d, 'body', mid, (y1 + y2) / 2, true);
       } else if (d.kind === 'tline' || d.kind === 'rect') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
@@ -1519,7 +1581,8 @@ export class PriceChart {
       d.kind === 'vline' ||
       d.kind === 'fib' ||
       d.kind === 'measure' ||
-      d.kind === 'channel'
+      d.kind === 'channel' ||
+      d.kind === 'prange'
     ) {
       if (part === 'p1' && d.kind === 'vline') return { ...d, t1: t, t2: t };
       if (part === 'p1') return { ...d, t1: t, p1: p };
