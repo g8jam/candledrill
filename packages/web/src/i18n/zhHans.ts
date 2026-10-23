@@ -170,6 +170,8 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.go': '前往',
   'pr.tf': '时间框',
   'pr.split': '双图表',
+  'pr.sideHide': '收起侧栏',
+  'pr.sideShow': '展开侧栏',
   'pr.undo': '撤销画图（Ctrl+Z）',
   'pr.redo': '重做画图（Ctrl+Y）',
   'pr.posTarget': '目标：{pts} ({pct}%) {ticks}, 金额：{money}',

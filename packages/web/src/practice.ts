@@ -396,6 +396,20 @@ export class PracticeView {
     const sheetBtn = btn('v1.panel', 'ghost sheet-toggle', 'btn-sheet');
     sheetBtn.setAttribute('aria-expanded', 'false');
     sheetBtn.addEventListener('click', () => this.setSheet(!this.sheetOpen));
+    // Desktop: collapse the right rail so the chart gets the width (phones use the sheet).
+    const sideToggle = btn('pr.sideHide', 'ghost side-toggle', 'btn-side');
+    const setSide = (collapsed: boolean) => {
+      this.root.classList.toggle('side-collapsed', collapsed);
+      const key: MessageKey = collapsed ? 'pr.sideShow' : 'pr.sideHide';
+      sideToggle.dataset.i18n = key;
+      sideToggle.textContent = t(key);
+      sideToggle.setAttribute('aria-pressed', String(collapsed));
+      localStorage.setItem('candledrill.sideCollapsed', collapsed ? '1' : '0');
+    };
+    setSide(localStorage.getItem('candledrill.sideCollapsed') === '1');
+    sideToggle.addEventListener('click', () =>
+      setSide(!this.root.classList.contains('side-collapsed')),
+    );
     const speed = this.bindSpeedSelect('speed');
     const jumpInput = el('input', {
       type: 'datetime-local',
@@ -505,6 +519,7 @@ export class PracticeView {
       replayState,
       clock,
       this.pnlChip!,
+      sideToggle,
       sheetBtn,
     );
     const charts = el('div', { class: 'charts', 'data-testid': 'charts' });

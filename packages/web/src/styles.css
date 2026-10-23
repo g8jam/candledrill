@@ -1317,3 +1317,13 @@ svg.draw-overlay .hit {
 .charts.drawing svg.draw-overlay * {
   pointer-events: none;
 }
+@media (min-width: 900px) {
+  .practice-root.side-collapsed .side {
+    display: none;
+  }
+}
+@media (max-width: 899px) {
+  .side-toggle {
+    display: none;
+  }
+}
