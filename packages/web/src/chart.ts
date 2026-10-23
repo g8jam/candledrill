@@ -437,7 +437,7 @@ export class PriceChart {
       priceLineVisible: false,
     });
     this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
-    this.volume.applyOptions({ visible: getSettings().volume });
+    this.volume.applyOptions({ visible: this.volumeVisible() });
     this.markers = createSeriesMarkers(this.candles, []);
     // OHLC legend (top-left): last bar, or the bar under the crosshair.
     this.legend = el('div', { class: 'ohlc-legend num', 'data-testid': 'ohlc-legend' });
@@ -629,7 +629,9 @@ export class PriceChart {
       }
       if (!param.sourceEvent) return; // set by another chart: do not echo it back
       const price = this.candles.coordinateToPrice(param.point.y);
-      this.crosshair = { t: time, p: price === null ? NaN : Number(price) };
+      // With the magnet on, the preview shows the snapped price the click will use.
+      const snapped = getSettings().magnet ? this.magnetPrice(param.point.x, param.point.y) : null;
+      this.crosshair = { t: time, p: snapped ?? (price === null ? NaN : Number(price)) };
       this.renderOverlay();
       handler(time);
     });
@@ -893,13 +895,20 @@ export class PriceChart {
   }
 
   /** Magnet: the open/high/low/close of the bar under x if within 8px of y. */
+  /** Volume needs both the Settings switch and the indicator list (saving settings kept
+   *  re-showing volume that was switched off in the indicator panel). */
+  private volumeVisible(): boolean {
+    const vol = this.indicatorConfig?.overlays.find((s) => s.kind === 'volume');
+    return getSettings().volume && (vol ? vol.visible : true);
+  }
+
   private magnetPrice(x: number, y: number): number | null {
     const logical = this.timeScale().coordinateToLogical(x);
     if (logical === null) return null;
     const bar = this.candles.dataByIndex(Math.round(logical));
     if (!bar || !('open' in bar)) return null;
     let best: number | null = null;
-    let dist = 8;
+    let dist = 12;
     for (const v of [bar.open, bar.high, bar.low, bar.close]) {
       const vy = this.yOf(v);
       if (vy !== null && Math.abs(vy - y) <= dist) {
@@ -2135,7 +2144,7 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
     });
-    this.volume.applyOptions({ visible: getSettings().volume });
+    this.volume.applyOptions({ visible: this.volumeVisible() });
   }
 
   // ---------------------------------------------------------------- freehand
@@ -2309,8 +2318,7 @@ export class PriceChart {
     const bars = this.indicatorBars;
     if (bars.length === 0) return;
 
-    const vol = this.indicatorConfig.overlays.find((s) => s.kind === 'volume');
-    this.volume.applyOptions({ visible: vol ? vol.visible : true });
+    this.volume.applyOptions({ visible: this.volumeVisible() });
 
     const overlayWanted = new Set<string>();
     for (const s of this.indicatorConfig.overlays) {
