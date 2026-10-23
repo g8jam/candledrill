@@ -333,6 +333,8 @@ export class PriceChart {
   private deleteHandler: ((id: string) => void) | undefined;
   private labeler: ((d: Extract<Drawing, { kind: 'position' }>) => PositionLabels) | undefined;
   private orderLineSpecs: PriceLineSpec[] = [];
+  /** Position tool under the mouse (its labels show, as in TradingView). */
+  private hoverId: string | null = null;
   private orderLineById = new Map<number, IPriceLine>();
   private orderDragHandler: ((orderId: number, price: number) => Promise<void>) | undefined;
   private orderDrag: {
@@ -444,8 +446,39 @@ export class PriceChart {
     this.styleBar = elStyleBar();
     container.append(this.overlay, this.styleBar, this.legend);
     window.addEventListener('keydown', this.onShiftKey);
+    container.addEventListener('pointermove', this.onHover, true);
+    container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
   }
+
+  /** Which position tool the mouse is over; re-render only when that changes. */
+  private readonly onHover = (e: PointerEvent): void => {
+    let id: string | null = null;
+    if (e.type === 'pointermove') {
+      const rect = this.overlay.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      for (const d of this.drawings) {
+        if (d.kind !== 'position') continue;
+        const x1 = this.xOf(d.t1);
+        const x2 = this.xOf(d.t2);
+        const ys = [d.entry, d.stop, d.target].map((v) => this.yOf(v));
+        if (x1 === null || x2 === null || ys.some((v) => v === null)) continue;
+        const yv = ys as number[];
+        if (
+          x >= Math.min(x1, x2) &&
+          x <= Math.max(x1, x2, Math.min(x1, x2) + 4) &&
+          y >= Math.min(...yv) &&
+          y <= Math.max(...yv)
+        )
+          id = d.id;
+      }
+    }
+    if (id === this.hoverId) return;
+    this.hoverId = id;
+    this.overlaySig = '';
+    this.renderOverlay();
+  };
 
   /** Track Shift so the trendline rubber-band turns horizontal without a mouse move. */
   private readonly onShiftKey = (e: KeyboardEvent): void => {
@@ -1376,7 +1409,8 @@ export class PriceChart {
             'stroke-width': 1,
           }),
         );
-        if (this.labeler) {
+        // Labels only while the tool is hovered or selected, as in TradingView.
+        if (this.labeler && (this.selected === d.id || this.hoverId === d.id)) {
           const lb = this.labeler(d);
           const cx = left + width / 2;
           // Rough width: CJK glyphs are about twice as wide as Latin ones at 12px.
