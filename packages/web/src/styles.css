@@ -1370,3 +1370,17 @@ svg.draw-overlay .pos-label {
 :root[data-theme='light'] svg.draw-overlay .pos-label {
   fill: #000000;
 }
+/* Trendline text: the "add text" placeholder and the inline editor. */
+svg.draw-overlay .tline-add {
+  pointer-events: all;
+  cursor: text;
+  opacity: 0.75;
+}
+.tline-input {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  width: 180px;
+  font-size: 13px;
+  text-align: center;
+}

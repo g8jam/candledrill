@@ -187,6 +187,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.posStop': '손절: {pts} ({pct}%) {ticks}',
   'pr.posOpen': '미실현 손익: {pnl}',
   'pr.posClosed': '실현 손익: {pnl}',
+  'pr.addText': '텍스트 추가',
   'pr.posRR': '손익비: {rr}',
   'pr.hideDrawings': '그림 숨기기',
   'pr.showDrawings': '그림 표시',

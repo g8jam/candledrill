@@ -190,6 +190,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.posStop': '損切り：{pts} ({pct}%) {ticks}',
   'pr.posOpen': '含み損益：{pnl}',
   'pr.posClosed': '確定損益：{pnl}',
+  'pr.addText': 'テキストを追加',
   'pr.posRR': 'リスクリワード比：{rr}',
   'pr.hideDrawings': '描画を非表示',
   'pr.showDrawings': '描画を表示',

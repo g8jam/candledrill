@@ -784,6 +784,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                       p1: { type: 'number', exclusiveMinimum: 0 },
                       t2: { type: 'integer' },
                       p2: { type: 'number', exclusiveMinimum: 0 },
+                      text: { type: 'string', minLength: 1, maxLength: 200 },
                     },
                   },
                   {

@@ -183,7 +183,17 @@ export interface MarkerSpec {
 
 export type Drawing =
   | { kind: 'hline'; id: string; price: number; color?: string }
-  | { kind: 'tline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | {
+      kind: 'tline';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      /** Optional text shown in the middle of the line, as in TradingView. */
+      text?: string;
+    }
   | { kind: 'ray'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'fib'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
@@ -236,6 +246,15 @@ export function clampPosition<D extends Extract<Drawing, { kind: 'position' }>>(
   const stop = dir * (d.entry - d.stop) < tick ? d.entry - dir * tick : d.stop;
   const target = dir * (d.target - d.entry) < tick ? d.entry + dir * tick : d.target;
   return { ...d, stop, target };
+}
+
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+/** Width of a 13px trendline label, used to break the line around it. */
+function measureLabel(s: string): number {
+  if (measureCtx === undefined) measureCtx = document.createElement('canvas').getContext('2d');
+  if (!measureCtx) return s.length * 8;
+  measureCtx.font = `13px ${getComputedStyle(document.documentElement).fontFamily}`;
+  return measureCtx.measureText(s).width;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -1455,8 +1474,7 @@ export class PriceChart {
       } else if (d.kind === 'tline' || d.kind === 'rect') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
-        if (d.kind === 'tline')
-          nodes.push(svg('line', { x1, y1, x2, y2, stroke: accent, 'stroke-width': 1 }));
+        if (d.kind === 'tline') this.tlineNodes(d, x1, y1, x2, y2, accent, nodes, hit);
         else
           nodes.push(
             svg('rect', {
@@ -1494,7 +1512,8 @@ export class PriceChart {
           handle(d, 'edgeT2', x2, my);
           handle(d, 'edgeP1', mx, y1);
           handle(d, 'edgeP2', mx, y2);
-        } else handle(d, 'body', (x1 + x2) / 2, (y1 + y2) / 2, true);
+        }
+        // A trendline has no middle handle (its middle holds the text); drag the line itself.
       } else {
         const [x1, x2, ye, ys, yt] = p;
         if (x1 == null || x2 == null || ye == null || ys == null || yt == null) return;
@@ -2285,6 +2304,111 @@ export class PriceChart {
     label.className = 'muted small';
     label.textContent = t('pr.textStyle');
     this.styleBar.replaceChildren(label, color, size, edit);
+  }
+
+  /**
+   * Trendline with optional text in its middle, as in TradingView: the text follows the
+   * line's angle and the line breaks around it. A selected line without text shows an
+   * "add text" placeholder there; clicking it (or double-clicking the text) edits inline.
+   */
+  private tlineNodes(
+    d: Extract<Drawing, { kind: 'tline' }>,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    accent: string,
+    nodes: SVGElement[],
+    hit: (d: Drawing, node: SVGElement) => void,
+  ): void {
+    const editable = !this.lockedIds.has(d.id);
+    const placeholder = !d.text && editable && this.selected === d.id;
+    const label = d.text ?? (placeholder ? `+ ${t('pr.addText')}` : '');
+    const line = (ax: number, ay: number, bx: number, by: number) =>
+      nodes.push(svg('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: accent, 'stroke-width': 1 }));
+    if (!label) {
+      line(x1, y1, x2, y2);
+      return;
+    }
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const gap = measureLabel(label) + 12;
+    if (len > gap + 4) {
+      const k = gap / 2 / len;
+      line(x1, y1, mx - (x2 - x1) * k, my - (y2 - y1) * k);
+      line(mx + (x2 - x1) * k, my + (y2 - y1) * k, x2, y2);
+    } else line(x1, y1, x2, y2);
+    // Keep the text upright whichever way the line was drawn.
+    let angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+    if (angle > 90) angle -= 180;
+    else if (angle < -90) angle += 180;
+    const tx = svg('text', {
+      x: mx,
+      y: my,
+      fill: accent,
+      'font-size': '13px',
+      'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+      transform: `rotate(${angle.toFixed(2)} ${mx} ${my})`,
+      class: placeholder ? 'tline-add' : 'tline-text',
+      'data-testid': `tline-text-${d.id}`,
+    });
+    tx.textContent = label;
+    if (placeholder) {
+      tx.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+      tx.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.editTlineText(d, mx, my);
+      });
+      nodes.push(tx);
+    } else if (editable) {
+      tx.addEventListener('dblclick', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.selected = d.id;
+        this.editTlineText(d, mx, my);
+      });
+      hit(d, tx);
+    } else nodes.push(tx);
+  }
+
+  /** Small inline input over the line's middle; Enter or leaving it saves, Esc cancels. */
+  private editTlineText(d: Extract<Drawing, { kind: 'tline' }>, x: number, y: number): void {
+    this.container.querySelector('.tline-input')?.remove();
+    const input = document.createElement('input');
+    input.className = 'tline-input';
+    input.maxLength = 200;
+    input.value = d.text ?? '';
+    input.placeholder = t('pr.addText');
+    input.dataset.testid = 'tline-input';
+    input.style.left = `${x}px`;
+    input.style.top = `${y}px`;
+    let done = false;
+    const finish = (save: boolean) => {
+      if (done) return;
+      done = true;
+      input.remove();
+      if (!save) return;
+      const text = input.value.trim().slice(0, 200);
+      if (text === (d.text ?? '')) return;
+      const next: Drawing = { ...d, text };
+      if (!text) delete next.text;
+      this.drawings = this.drawings.map((o) => (o.id === next.id ? next : o));
+      this.overlaySig = '';
+      this.renderOverlay();
+      this.editHandler?.(next);
+    };
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') finish(true);
+      else if (e.key === 'Escape') finish(false);
+    });
+    input.addEventListener('blur', () => finish(true));
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.container.append(input);
+    input.focus();
+    input.select();
   }
 
   private editTextContent(d: Extract<Drawing, { kind: 'text' }>): void {

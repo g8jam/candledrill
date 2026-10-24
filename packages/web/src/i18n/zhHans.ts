@@ -180,6 +180,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.posStop': '止损：{pts} ({pct}%) {ticks}',
   'pr.posOpen': '未平仓盈亏：{pnl}',
   'pr.posClosed': '已平仓盈亏：{pnl}',
+  'pr.addText': '添加文字',
   'pr.posRR': '风险/回报比：{rr}',
   'pr.hideDrawings': '隐藏图形',
   'pr.showDrawings': '显示图形',

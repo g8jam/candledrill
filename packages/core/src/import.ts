@@ -192,7 +192,9 @@ export function drawingIssues(d: unknown): string[] {
       )
         out.push(`drawings[${i}]: invalid`);
     } else if (TWO_POINT_KINDS.has(x.kind as string)) {
-      const keys = Object.keys(x).filter((k) => k !== 'color');
+      // A trendline may also carry text in its middle.
+      const tlineText = x.kind === 'tline' && x.text !== undefined;
+      const keys = Object.keys(x).filter((k) => k !== 'color' && !(tlineText && k === 'text'));
       if (
         keys.length !== 6 ||
         !id(x.id) ||
@@ -200,7 +202,9 @@ export function drawingIssues(d: unknown): string[] {
         !isInt(x.t2) ||
         !isPos(x.p1) ||
         !isPos(x.p2) ||
-        (x.color !== undefined && typeof x.color !== 'string')
+        (x.color !== undefined && typeof x.color !== 'string') ||
+        (tlineText &&
+          (typeof x.text !== 'string' || x.text.length < 1 || x.text.length > 200))
       )
         out.push(`drawings[${i}]: invalid`);
     } else if (x.kind === 'channel') {
