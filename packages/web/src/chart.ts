@@ -1608,7 +1608,7 @@ export class PriceChart {
             nodes.push(strip);
           }
         handle(d, 'body', left + width / 2, ye, true);
-        handle(d, 'entry', left, ye);
+        handle(d, 'entry', left, ye, false, 10);
         handle(d, 'stop', left + width / 2, ys);
         handle(d, 'target', left + width / 2, yt);
         handle(d, 't2', left + width, ye, false, 10);
