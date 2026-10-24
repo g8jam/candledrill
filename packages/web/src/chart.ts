@@ -1550,7 +1550,7 @@ export class PriceChart {
             const tx = svg('text', {
               x: x + w / 2,
               y: yTop + 15,
-              fill: '#ffffff',
+              class: 'pos-label',
               'font-size': '12px',
               // TradingView's label font (Trebuchet MS on Windows; CJK falls back to JhengHei).
               'font-family':
@@ -1965,7 +1965,17 @@ export class PriceChart {
       return { ...d, t1: d.t1 + dt, t2: d.t2 + dt, p1: shiftP(d.p1), p2: shiftP(d.p2) };
     }
     let n = d;
-    if (part === 'body' || part === 'entry')
+    if (part === 'entry') {
+      // As in TradingView: the left handle moves the entry price and the left edge;
+      // stop, target and the right edge stay put. Entry stays between stop and target.
+      const lo = Math.min(d.stop, d.target) + this.tick;
+      const hi = Math.max(d.stop, d.target) - this.tick;
+      n = {
+        ...d,
+        t1: Math.min(t, d.t2 - this.barSeconds),
+        entry: Math.min(hi, Math.max(lo, p)),
+      };
+    } else if (part === 'body')
       n = {
         ...d,
         t1: d.t1 + dt,

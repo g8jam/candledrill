@@ -1363,3 +1363,10 @@ svg.draw-overlay .hit {
 svg.draw-overlay .hit.resize-ns {
   cursor: ns-resize;
 }
+/* Position tool labels: white on dark, black on light. */
+svg.draw-overlay .pos-label {
+  fill: #ffffff;
+}
+:root[data-theme='light'] svg.draw-overlay .pos-label {
+  fill: #000000;
+}
