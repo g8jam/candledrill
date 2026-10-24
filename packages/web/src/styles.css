@@ -1360,3 +1360,6 @@ svg.draw-overlay .hit {
     display: none;
   }
 }
+svg.draw-overlay .hit.resize-ns {
+  cursor: ns-resize;
+}

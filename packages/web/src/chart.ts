@@ -1570,6 +1570,23 @@ export class PriceChart {
           box([lb.stop], outside(ys), this.theme.down);
           box(lb.center, ye + 6, lb.profit ? this.theme.up : this.theme.down, `rlabel-${d.id}`);
         }
+        // Wide invisible strips on the stop / target edges so they are easy to grab and resize.
+        if (!this.lockedIds.has(d.id))
+          for (const [part, y] of [
+            ['stop', ys],
+            ['target', yt],
+          ] as const) {
+            const strip = svg('rect', {
+              x: left,
+              y: y - 6,
+              width,
+              height: 12,
+              fill: 'transparent',
+              class: 'hit resize-ns',
+            });
+            strip.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, part));
+            nodes.push(strip);
+          }
         handle(d, 'body', left + width / 2, ye, true);
         handle(d, 'entry', left, ye);
         handle(d, 'stop', left + width / 2, ys);
