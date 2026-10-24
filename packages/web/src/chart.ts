@@ -1541,9 +1541,9 @@ export class PriceChart {
         if (this.labeler && (this.selected === d.id || this.hoverId === d.id)) {
           const lb = this.labeler(d);
           const cx = left + width / 2;
-          // Rough width: CJK glyphs are about twice as wide as Latin ones at 12px.
+          // Rough width at 12px: CJK glyphs 12px, Trebuchet Latin about 5.4px.
           const textW = (s: string) =>
-            [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 12 : 6.8), 0);
+            [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 12 : 5.4), 0);
           const box = (lines: string[], yTop: number, fill: string, testid?: string) => {
             const w = Math.max(...lines.map(textW)) + 14;
             const h = lines.length * 16 + 6;
@@ -1554,6 +1554,9 @@ export class PriceChart {
               y: yTop + 15,
               fill: '#ffffff',
               'font-size': '12px',
+              // TradingView's label font (Trebuchet MS on Windows; CJK falls back to JhengHei).
+              'font-family':
+                "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, 'Microsoft JhengHei', sans-serif",
               'text-anchor': 'middle',
               ...(testid ? { 'data-testid': testid } : {}),
             });
