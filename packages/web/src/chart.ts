@@ -1110,10 +1110,10 @@ export class PriceChart {
       x: number | null,
       y: number | null,
       body = false,
+      size = body ? 10 : 6,
     ) => {
       // Like TradingView: anchor handles only show on the selected drawing.
       if (x === null || y === null || this.lockedIds.has(d.id) || this.selected !== d.id) return;
-      const size = body ? 10 : 6;
       const h = svg('rect', {
         x: x - size / 2,
         y: y - size / 2,
@@ -1594,7 +1594,7 @@ export class PriceChart {
         handle(d, 'entry', left, ye);
         handle(d, 'stop', left + width / 2, ys);
         handle(d, 'target', left + width / 2, yt);
-        handle(d, 't2', left + width, ye);
+        handle(d, 't2', left + width, ye, false, 10);
       }
       if (this.selected === d.id && this.deleteHandler) {
         const anchor =
