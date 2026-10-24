@@ -283,7 +283,7 @@ type DragPart =
   | 'edgeP2';
 
 /** Fibonacci retracement levels drawn between the two anchors. */
-export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
+export const FIB_LEVELS = [0, 0.5, 0.62, 0.702, 0.79, 1] as const;
 
 /** Price, tick, bar and percent distance between two anchors (measure tool label). */
 export function measureText(
