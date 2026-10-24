@@ -804,8 +804,8 @@ export class PracticeView {
 
   /** Label of a long/short R tool: risk and reward in ticks and money, and the R multiple. */
   /**
-   * Long / short position tool labels, as in TradingView. Amounts use the order-ticket
-   * quantity. The trade counts as closed on the first bar after the entry bar (up to the
+   * Long / short position tool labels, as in TradingView (no quantity or amount).
+   * The trade counts as closed on the first bar after the entry bar (up to the
    * tool's right edge) that reaches the target or the stop; the stop wins a tie, as in
    * the fill model.
    */
@@ -845,7 +845,6 @@ export class PracticeView {
 
   private positionLabel(d: Extract<Drawing, { kind: 'position' }>): PositionLabels {
     const s = this.meta!.settings;
-    const qty = this.side?.quantity ?? 1;
     const dp = tickDecimals(s.tickSize);
     const dir = d.side === 'long' ? 1 : -1;
     const leg = (price: number) => {
@@ -854,7 +853,6 @@ export class PracticeView {
         pts: pts.toFixed(dp),
         pct: ((pts / d.entry) * 100).toFixed(3),
         ticks: Math.round(pts / s.tickSize),
-        money: fmtMoney(pts * qty * s.pointValue),
       };
     };
     const { exit, last } = this.positionOutcome(d, dir);
@@ -864,10 +862,9 @@ export class PracticeView {
       target: t('pr.posTarget', leg(d.target)),
       stop: t('pr.posStop', leg(d.stop)),
       center: [
-        t(exit === null ? 'pr.posOpen' : 'pr.posClosed', { pnl: pnl.toFixed(dp), qty }),
+        t(exit === null ? 'pr.posOpen' : 'pr.posClosed', { pnl: pnl.toFixed(dp) }),
         t('pr.posRR', { rr: risk > 0 ? (Math.abs(d.target - d.entry) / risk).toFixed(2) : '–' }),
       ],
-      profit: pnl >= 0,
     };
   }
 

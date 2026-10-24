@@ -173,7 +173,6 @@ export interface PositionLabels {
   target: string;
   stop: string;
   center: string[];
-  profit: boolean;
 }
 
 export interface MarkerSpec {
@@ -1544,11 +1543,10 @@ export class PriceChart {
           // Rough width at 12px: CJK glyphs 12px, Trebuchet Latin about 5.4px.
           const textW = (s: string) =>
             [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 12 : 5.4), 0);
-          const box = (lines: string[], yTop: number, fill: string, testid?: string) => {
+          // Plain white text, no background box.
+          const box = (lines: string[], yTop: number, testid?: string) => {
             const w = Math.max(...lines.map(textW)) + 14;
-            const h = lines.length * 16 + 6;
             const x = Math.max(4, Math.min(cx - w / 2, plotW - w - 4));
-            nodes.push(svg('rect', { x, y: yTop, width: w, height: h, rx: 4, fill }));
             const tx = svg('text', {
               x: x + w / 2,
               y: yTop + 15,
@@ -1569,9 +1567,9 @@ export class PriceChart {
           };
           // Target and stop labels sit just outside their zones, away from the entry.
           const outside = (y: number) => (y < ye ? y - 26 : y + 4);
-          box([lb.target], outside(yt), this.theme.up);
-          box([lb.stop], outside(ys), this.theme.down);
-          box(lb.center, ye + 6, lb.profit ? this.theme.up : this.theme.down, `rlabel-${d.id}`);
+          box([lb.target], outside(yt));
+          box([lb.stop], outside(ys));
+          box(lb.center, ye + 6, `rlabel-${d.id}`);
         }
         // Wide invisible strips on the stop / target edges so they are easy to grab and resize.
         if (!this.lockedIds.has(d.id))
