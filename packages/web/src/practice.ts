@@ -119,9 +119,14 @@ function saveCheckpoints(id: number, list: Checkpoint[]): void {
 
 const HIDE_KEY = 'candledrill.hideDrawings';
 
-function loadDrawingsHidden(): boolean {
+/** Each chart remembers its own hide state (main chart keeps the original key). */
+function hideKey(index: number): string {
+  return index ? `${HIDE_KEY}.${index}` : HIDE_KEY;
+}
+
+function loadDrawingsHidden(index: number): boolean {
   try {
-    return localStorage.getItem(HIDE_KEY) === '1';
+    return localStorage.getItem(hideKey(index)) === '1';
   } catch {
     return false;
   }
@@ -158,6 +163,9 @@ interface ChartPane {
   agg: BarAggregator;
   select: HTMLSelectElement;
   cell: HTMLElement;
+  /** This chart's drawings are hidden (kept, just not drawn). */
+  drawingsHidden: boolean;
+  hideBtn: HTMLElement;
 }
 
 export class PracticeView {
@@ -203,7 +211,6 @@ export class PracticeView {
   private indicatorConfig: PaneIndicatorConfig = loadIndicatorConfig();
   private indicatorPanels: IndicatorPanel[] = [];
   private palettes: DrawingPalette[] = [];
-  private drawingsHidden = loadDrawingsHidden();
   /** Drawing snapshots for undo / redo (drawings only; fills cannot be undone). */
   private undoStack: Drawing[][] = [];
   private redoStack: Drawing[][] = [];
@@ -742,7 +749,8 @@ export class PracticeView {
     for (const p of this.palettes) p.setActive(mode);
     for (const p of this.panes) p.chart.setDrawingMode(mode !== null);
     // Drawing while drawings are hidden would be invisible: show them again.
-    if (mode !== null && this.drawingsHidden) this.setDrawingsHidden(false);
+    if (mode !== null)
+      for (const p of this.panes) if (p.drawingsHidden) this.setDrawingsHidden(p, false);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
     if (mode === 'freehand') {
       for (const p of this.panes) {
@@ -870,31 +878,23 @@ export class PracticeView {
   private flags: DrawingFlags = { hidden: [], locked: [] };
   private objectsList: HTMLElement | undefined;
 
-  /** One click hides every drawing on every pane; the next shows them again. */
-  private hideButton(): HTMLElement {
-    const b = el('button', { type: 'button', class: 'small ghost', 'data-testid': 'hide-toggle' });
-    b.addEventListener('click', () => this.setDrawingsHidden(!this.drawingsHidden));
-    this.syncHideButton(b);
-    return b;
-  }
-
-  private setDrawingsHidden(on: boolean): void {
-    this.drawingsHidden = on;
+  /** One click hides every drawing on this chart only; the next shows them again. */
+  private setDrawingsHidden(p: ChartPane, on: boolean): void {
+    p.drawingsHidden = on;
     try {
-      localStorage.setItem(HIDE_KEY, on ? '1' : '0');
+      localStorage.setItem(hideKey(this.panes.indexOf(p)), on ? '1' : '0');
     } catch {
       // Preference only.
     }
+    this.syncHideButton(p);
     this.renderDrawings();
-    for (const b of document.querySelectorAll<HTMLElement>('[data-testid=hide-toggle]'))
-      this.syncHideButton(b);
   }
 
-  private syncHideButton(b: HTMLElement): void {
-    const key: MessageKey = this.drawingsHidden ? 'pr.showDrawings' : 'pr.hideDrawings';
-    b.dataset.i18n = key;
-    b.textContent = t(key);
-    b.setAttribute('aria-pressed', String(this.drawingsHidden));
+  private syncHideButton(p: ChartPane): void {
+    const key: MessageKey = p.drawingsHidden ? 'pr.showDrawings' : 'pr.hideDrawings';
+    p.hideBtn.dataset.i18n = key;
+    p.hideBtn.textContent = t(key);
+    p.hideBtn.setAttribute('aria-pressed', String(p.drawingsHidden));
   }
 
   private renderDrawings(): void {
@@ -902,8 +902,8 @@ export class PracticeView {
     const locked = new Set(this.flags.locked);
     for (const p of this.panes) {
       p.chart.setDrawingFlags(hidden, locked);
-      // The one-click hide button leaves every drawing off the chart (they are kept).
-      p.chart.setDrawings(this.drawingsHidden ? [] : this.drawings, (time) => this.snap(p, time));
+      // The one-click hide button leaves every drawing off that chart (they are kept).
+      p.chart.setDrawings(p.drawingsHidden ? [] : this.drawings, (time) => this.snap(p, time));
     }
     this.renderObjects();
   }
@@ -1053,13 +1053,18 @@ export class PracticeView {
       { type: 'button', class: 'small ghost', 'data-i18n': 'pr.indicators' },
       t('pr.indicators'),
     );
+    const hideBtn = el('button', {
+      type: 'button',
+      class: 'small ghost',
+      'data-testid': 'hide-toggle',
+    });
     const head = el(
       'div',
       { class: 'chart-head' },
       select,
       el('span', { class: 'chart-clock' }),
       el('span', { class: 'spacer' }),
-      this.hideButton(),
+      hideBtn,
       indBtn,
     );
     const body = el('div', { class: 'chart-body' });
@@ -1083,7 +1088,11 @@ export class PracticeView {
       agg: new BarAggregator(tf, this.aggOpts()),
       select,
       cell,
+      drawingsHidden: loadDrawingsHidden(this.panes.length),
+      hideBtn,
     };
+    hideBtn.addEventListener('click', () => this.setDrawingsHidden(pane, !pane.drawingsHidden));
+    this.syncHideButton(pane);
     const panel = new IndicatorPanel(head, (cfg) => {
       this.indicatorConfig = cfg;
       for (const p of this.panes) p.chart.setIndicators(cfg, this.aggOpts());
@@ -1142,7 +1151,7 @@ export class PracticeView {
         this.focusPane(p, trade);
       } else p.chart.showRecent(150);
     });
-    p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
+    p.chart.setDrawings(p.drawingsHidden ? [] : this.drawings, (time) => this.snap(p, time));
     this.decorate();
   }
 
