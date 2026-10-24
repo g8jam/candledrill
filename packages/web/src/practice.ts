@@ -1298,8 +1298,15 @@ export class PracticeView {
         kind === 'channel'
           ? // Default width: 1% of price, user drags the middle handle to adjust.
             { kind, id, t1, p1: a.price, t2, p2: px, w: roundToTick(a.price * 0.01, tick) || tick }
-          : // Shift keeps a trendline horizontal.
-            { kind, id, t1, p1: a.price, t2, p2: shift && kind === 'tline' ? a.price : px };
+          : // Shift keeps a trendline or ray horizontal.
+            {
+              kind,
+              id,
+              t1,
+              p1: a.price,
+              t2,
+              p2: shift && (kind === 'tline' || kind === 'ray') ? a.price : px,
+            };
       void this.saveDrawings([...this.drawings, next]);
       return;
     }

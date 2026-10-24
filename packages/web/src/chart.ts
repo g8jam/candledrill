@@ -1841,9 +1841,11 @@ export class PriceChart {
       if (t === null || p === null || !this.drag) return;
       moved = true;
       const { start, part } = this.drag;
-      // Shift keeps a trendline horizontal while dragging one of its ends.
+      // Shift keeps a trendline or ray horizontal while dragging one of its ends.
       const point =
-        e.shiftKey && start.kind === 'tline' && (part === 'p1' || part === 'p2')
+        e.shiftKey &&
+        (start.kind === 'tline' || start.kind === 'ray') &&
+        (part === 'p1' || part === 'p2')
           ? part === 'p1'
             ? start.p2
             : start.p1
@@ -2325,7 +2327,9 @@ export class PriceChart {
     const placeholder = !d.text && editable && this.selected === d.id;
     const label = d.text ?? (placeholder ? `+ ${t('pr.addText')}` : '');
     const line = (ax: number, ay: number, bx: number, by: number) =>
-      nodes.push(svg('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: accent, 'stroke-width': 1 }));
+      nodes.push(
+        svg('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: accent, 'stroke-width': 1 }),
+      );
     if (!label) {
       line(x1, y1, x2, y2);
       return;
