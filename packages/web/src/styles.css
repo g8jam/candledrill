@@ -1327,3 +1327,36 @@ svg.draw-overlay .hit {
     display: none;
   }
 }
+/* Side-by-side charts: adjustable width ratio (stacked layouts keep their own rules). */
+.charts {
+  position: relative;
+}
+.charts.split {
+  grid-template-columns: minmax(0, var(--split-left, 1fr)) minmax(0, var(--split-right, 1fr));
+}
+.split-handle {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  margin-left: -4px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+}
+.charts.split .split-handle {
+  display: block;
+}
+.split-handle:hover,
+.split-handle.dragging {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+@media (max-width: 1000px) {
+  .charts.split {
+    grid-template-columns: 1fr;
+  }
+  .charts.split .split-handle {
+    display: none;
+  }
+}

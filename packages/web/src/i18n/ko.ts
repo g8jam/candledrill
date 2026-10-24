@@ -177,6 +177,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.go': '이동',
   'pr.tf': '시간봉',
   'pr.split': '두 차트',
+  'pr.splitDrag': '드래그로 좌우 비율 조절, 더블클릭하면 반반',
   'pr.magnet': '자석',
   'pr.sideHide': '사이드 패널 접기',
   'pr.sideShow': '사이드 패널 펼치기',

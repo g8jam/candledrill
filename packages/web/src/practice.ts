@@ -523,6 +523,7 @@ export class PracticeView {
       sheetBtn,
     );
     const charts = el('div', { class: 'charts', 'data-testid': 'charts' });
+    charts.append(this.splitHandle(charts));
     const chartCol = el('div', { class: 'chart-col' });
     this.rulesStrip = new RulesStrip(chartCol);
     chartCol.append(charts);
@@ -664,6 +665,51 @@ export class PracticeView {
     const defaultTf = this.chartTimeframes()[0] ?? 60;
     this.addPane(defaultTf);
     if (localStorage.getItem('candledrill.split') === '1') this.toggleSplit();
+  }
+
+  /**
+   * Drag handle between the two side-by-side charts: sets the left/right width ratio
+   * (15%–85%, remembered). Double-click returns to 50/50.
+   */
+  private splitHandle(charts: HTMLElement): HTMLElement {
+    const KEY = 'candledrill.splitRatio';
+    const handle = el('div', {
+      class: 'split-handle',
+      'data-testid': 'split-handle',
+      title: t('pr.splitDrag'),
+    });
+    const apply = (r: number) => {
+      charts.style.setProperty('--split-left', `${r}fr`);
+      charts.style.setProperty('--split-right', `${1 - r}fr`);
+      handle.style.left = `${r * 100}%`;
+    };
+    let ratio = Number(localStorage.getItem(KEY));
+    if (!(ratio >= 0.15 && ratio <= 0.85)) ratio = 0.5;
+    apply(ratio);
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('dragging');
+      const move = (ev: PointerEvent) => {
+        const rect = charts.getBoundingClientRect();
+        ratio = Math.min(0.85, Math.max(0.15, (ev.clientX - rect.left) / rect.width));
+        apply(ratio);
+      };
+      const up = () => {
+        handle.classList.remove('dragging');
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        localStorage.setItem(KEY, String(ratio));
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+    });
+    handle.addEventListener('dblclick', () => {
+      ratio = 0.5;
+      apply(ratio);
+      localStorage.setItem(KEY, String(ratio));
+    });
+    return handle;
   }
 
   private toggleSplit(): void {
