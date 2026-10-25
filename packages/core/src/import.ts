@@ -192,8 +192,8 @@ export function drawingIssues(d: unknown): string[] {
       )
         out.push(`drawings[${i}]: invalid`);
     } else if (TWO_POINT_KINDS.has(x.kind as string)) {
-      // A trendline may also carry text in its middle.
-      const tlineText = x.kind === 'tline' && x.text !== undefined;
+      // A trendline (or a rectangle's middle line) may also carry text.
+      const tlineText = (x.kind === 'tline' || x.kind === 'rect') && x.text !== undefined;
       const keys = Object.keys(x).filter((k) => k !== 'color' && !(tlineText && k === 'text'));
       if (
         keys.length !== 6 ||

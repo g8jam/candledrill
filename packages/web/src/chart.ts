@@ -209,7 +209,17 @@ export type Drawing =
       w: number;
       color?: string;
     }
-  | { kind: 'rect'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | {
+      kind: 'rect';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      /** Optional text on the dashed 50% line, as on a trendline. */
+      text?: string;
+    }
   | { kind: 'prange'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'position';
@@ -1487,17 +1497,19 @@ export class PriceChart {
               'stroke-width': 1,
               'data-kind': 'rect',
             }),
-            // 50% line, dashed, as TradingView's rectangle middle line.
-            svg('line', {
-              x1: Math.min(x1, x2),
-              x2: Math.max(x1, x2),
-              y1: (y1 + y2) / 2,
-              y2: (y1 + y2) / 2,
-              stroke: accent,
-              'stroke-width': 1,
-              'stroke-dasharray': '6 4',
-              'data-kind': 'rect-mid',
-            }),
+          );
+        // 50% line, dashed, as TradingView's rectangle middle line; it can hold text too.
+        if (d.kind === 'rect')
+          this.tlineNodes(
+            d,
+            Math.min(x1, x2),
+            (y1 + y2) / 2,
+            Math.max(x1, x2),
+            (y1 + y2) / 2,
+            accent,
+            nodes,
+            hit,
+            { 'stroke-dasharray': '6 4', 'data-kind': 'rect-mid' },
           );
         handle(d, 'p1', x1, y1);
         handle(d, 'p2', x2, y2);
@@ -2312,9 +2324,10 @@ export class PriceChart {
    * Trendline with optional text in its middle, as in TradingView: the text follows the
    * line's angle and the line breaks around it. A selected line without text shows an
    * "add text" placeholder there; clicking it (or double-clicking the text) edits inline.
+   * Also used for a rectangle's dashed middle line (`lineAttrs` styles the line).
    */
   private tlineNodes(
-    d: Extract<Drawing, { kind: 'tline' }>,
+    d: Extract<Drawing, { kind: 'tline' | 'rect' }>,
     x1: number,
     y1: number,
     x2: number,
@@ -2322,13 +2335,22 @@ export class PriceChart {
     accent: string,
     nodes: SVGElement[],
     hit: (d: Drawing, node: SVGElement) => void,
+    lineAttrs: Record<string, string | number> = {},
   ): void {
     const editable = !this.lockedIds.has(d.id);
     const placeholder = !d.text && editable && this.selected === d.id;
     const label = d.text ?? (placeholder ? `+ ${t('pr.addText')}` : '');
     const line = (ax: number, ay: number, bx: number, by: number) =>
       nodes.push(
-        svg('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: accent, 'stroke-width': 1 }),
+        svg('line', {
+          x1: ax,
+          y1: ay,
+          x2: bx,
+          y2: by,
+          stroke: accent,
+          'stroke-width': 1,
+          ...lineAttrs,
+        }),
       );
     if (!label) {
       line(x1, y1, x2, y2);
@@ -2378,7 +2400,11 @@ export class PriceChart {
   }
 
   /** Small inline input over the line's middle; Enter or leaving it saves, Esc cancels. */
-  private editTlineText(d: Extract<Drawing, { kind: 'tline' }>, x: number, y: number): void {
+  private editTlineText(
+    d: Extract<Drawing, { kind: 'tline' | 'rect' }>,
+    x: number,
+    y: number,
+  ): void {
     this.container.querySelector('.tline-input')?.remove();
     const input = document.createElement('input');
     input.className = 'tline-input';
