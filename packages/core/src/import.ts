@@ -203,8 +203,7 @@ export function drawingIssues(d: unknown): string[] {
         !isPos(x.p1) ||
         !isPos(x.p2) ||
         (x.color !== undefined && typeof x.color !== 'string') ||
-        (tlineText &&
-          (typeof x.text !== 'string' || x.text.length < 1 || x.text.length > 200))
+        (tlineText && (typeof x.text !== 'string' || x.text.length < 1 || x.text.length > 200))
       )
         out.push(`drawings[${i}]: invalid`);
     } else if (x.kind === 'channel') {
