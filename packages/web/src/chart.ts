@@ -410,6 +410,8 @@ export class PriceChart {
   private crosshair: { t: number; p: number } | null = null;
   private shiftDown = false;
   private drawingsLoaded = false;
+  /** Last press on a line's text, to detect a double-click across redraws. */
+  private lastTextDown: { id: string; at: number; x: number; y: number } | null = null;
   private drawingMode = false;
   private blindAxis = false;
   private dynSig = '';
@@ -2389,11 +2391,24 @@ export class PriceChart {
       });
       nodes.push(tx);
     } else if (editable) {
-      tx.addEventListener('dblclick', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.selected = d.id;
-        this.editTlineText(d, mx, my);
+      // Double-click edits. The first click selects and redraws the line, so the second
+      // lands on a new element and the browser never fires dblclick: detect it here.
+      tx.addEventListener('pointerdown', (ev) => {
+        const now = performance.now();
+        const last = this.lastTextDown;
+        this.lastTextDown = { id: d.id, at: now, x: ev.clientX, y: ev.clientY };
+        if (
+          last &&
+          last.id === d.id &&
+          now - last.at < 450 &&
+          Math.hypot(ev.clientX - last.x, ev.clientY - last.y) < 6
+        ) {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          this.lastTextDown = null;
+          this.selected = d.id;
+          this.editTlineText(d, mx, my);
+        }
       });
       hit(d, tx);
     } else nodes.push(tx);
