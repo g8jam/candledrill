@@ -752,9 +752,6 @@ export class PracticeView {
     this.els.charts?.classList.toggle('drawing', mode !== null);
     for (const p of this.palettes) p.setActive(mode);
     for (const p of this.panes) p.chart.setDrawingMode(mode !== null);
-    // Drawing while drawings are hidden would be invisible: show them again.
-    if (mode !== null)
-      for (const p of this.panes) if (p.drawingsHidden) this.setDrawingsHidden(p, false);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
     if (mode === 'freehand') {
       for (const p of this.panes) {
@@ -1226,6 +1223,9 @@ export class PracticeView {
   ): void {
     if (time !== null) time = this.snap(_p, time);
     if (price === null) return;
+    // Drawing on a chart whose drawings are hidden would be invisible: show that chart's
+    // drawings again. Other charts keep their hidden state.
+    if (this.drawMode !== null && _p.drawingsHidden) this.setDrawingsHidden(_p, false);
     const tick = this.meta!.settings.tickSize;
     const px = roundToTick(price, tick);
     const id = `d${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
