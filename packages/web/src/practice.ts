@@ -2694,6 +2694,12 @@ export class PracticeView {
       else for (const p of this.palettes) p.collapse();
       return;
     }
+    // Alt+T: trendline tool (as in TradingView).
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyT') {
+      e.preventDefault();
+      this.setDrawMode('tline');
+      return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const sel = this.panes.map((p) => p.chart.selectedDrawing).find((x) => x !== null);
       if (sel) this.deleteDrawing(sel);
