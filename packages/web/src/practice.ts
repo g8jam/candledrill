@@ -173,6 +173,8 @@ export class PracticeView {
   private state: SessionStateDto | undefined;
   private summary: CompletionSummary | undefined;
   private bars: Bar[] = [];
+  /** Dataset index of bars[0]. The server sends at most the last 50k bars, so this can be > 0. */
+  private barBase = 0;
   private cursorTime = 0;
   private panes: ChartPane[] = [];
   private playing = false;
@@ -291,6 +293,7 @@ export class PracticeView {
     this.claimView();
     this.meta = view.session;
     this.bars = view.bars;
+    this.barBase = view.state.cursor - (view.bars.length - 1);
     this.drawings = (view.session.drawings as Drawing[]) ?? [];
     this.build();
     this.applyView(view);
@@ -327,6 +330,7 @@ export class PracticeView {
     this.meta = undefined;
     this.state = undefined;
     this.bars = [];
+    this.barBase = 0;
     this.drawings = [];
     this.pendingPoint = null;
     this.drawMode = null;
@@ -1462,6 +1466,7 @@ export class PracticeView {
       if (generation !== this.generation) return false;
       this.claimView();
       this.bars = r.bars;
+      this.barBase = r.state.cursor - (r.bars.length - 1);
       this.applyView(r);
       if (this.state) forgetTapeAfter(this.tape, this.state.cursor);
       this.resetCharts();
@@ -1487,7 +1492,7 @@ export class PracticeView {
     if (this.blindHidden) return toast(t('v1.rewindBlind'));
     if (this.inFlight) return toast(t('pr.busy'));
     if (!this.barsAligned()) return toast(t('pr.barBackNone'));
-    const prev = previousPracticeCursor(this.bars, this.state.cursor, this.meta.settings);
+    const prev = this.previousCursor();
     if (prev === null) return toast(t('pr.barBackNone'));
     const snap = this.tape.get(prev);
     if (!snap || snap.cursor >= this.state.cursor) return toast(t('pr.barBackNone'));
@@ -1503,23 +1508,26 @@ export class PracticeView {
     if (this.blindHidden) return toast(t('v1.rewindBlind'));
     if (this.inFlight) return toast(t('pr.busy'));
     if (!this.barsAligned()) return toast(t('pr.replayMissing'));
-    const idx = replayCursorForBarTime(
+    const base = this.barBase;
+    const local = replayCursorForBarTime(
       this.bars,
-      this.state.cursor,
+      this.state.cursor - base,
       barTime,
       barSeconds,
       this.aggOpts(),
     );
-    if (idx === null) return toast(t('pr.replayMissing'));
+    if (local === null) return toast(t('pr.replayMissing'));
+    const idx = local + base;
     const opts = this.aggOpts();
-    const bucket = bucketStart(this.bars[idx]!.time, barSeconds, opts);
+    const bucket = bucketStart(this.bars[local]!.time, barSeconds, opts);
     let snap = this.tape.get(idx) ?? null;
     if (!snap) {
       const near = tapeAtOrBefore(this.tape, idx);
       if (
         near &&
-        near.cursor < this.bars.length &&
-        bucketStart(this.bars[near.cursor]!.time, barSeconds, opts) === bucket
+        near.cursor >= base &&
+        near.cursor - base < this.bars.length &&
+        bucketStart(this.bars[near.cursor - base]!.time, barSeconds, opts) === bucket
       )
         snap = near;
     }
@@ -1529,7 +1537,32 @@ export class PracticeView {
   }
 
   private barsAligned(): boolean {
-    return !!this.state && this.bars.length > 0 && this.bars.length - 1 === this.state.cursor;
+    return (
+      !!this.state &&
+      this.bars.length > 0 &&
+      this.barBase + this.bars.length - 1 === this.state.cursor
+    );
+  }
+
+  /** Dataset cursor at the end of the previous practice bar, or null. */
+  private previousCursor(): number | null {
+    if (!this.state || !this.meta) return null;
+    const base = this.barBase;
+    const prev = previousPracticeCursor(this.bars, this.state.cursor - base, this.meta.settings);
+    return prev === null ? null : prev + base;
+  }
+
+  /** The loaded bars indexed by dataset index, as the core replay functions expect. */
+  private datasetBars(): readonly Bar[] {
+    const base = this.barBase;
+    if (base === 0) return this.bars;
+    return new Proxy(this.bars, {
+      get(target, key, receiver) {
+        if (key === 'length') return target.length + base;
+        if (typeof key === 'string' && /^\d+$/.test(key)) return target[Number(key) - base];
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
   }
 
   /** Slice a multi-bar step into practice-bar states when the local replay matches the server. */
@@ -1537,12 +1570,11 @@ export class PracticeView {
     if (!this.meta) return;
     noteTape(this.tape, before);
     const aligned =
-      this.bars.length - 1 === after.cursor &&
-      before.cursor >= 0 &&
-      before.cursor < this.bars.length &&
+      this.barBase + this.bars.length - 1 === after.cursor &&
+      before.cursor >= this.barBase &&
       before.cursor < after.cursor;
     if (aligned) {
-      const frames = practiceFrames(this.bars, this.meta.settings, before, after.cursor);
+      const frames = practiceFrames(this.datasetBars(), this.meta.settings, before, after.cursor);
       const last = frames.at(-1);
       if (
         last &&
@@ -1559,7 +1591,7 @@ export class PracticeView {
 
   private canStepBackBar(): boolean {
     if (!this.state || !this.meta || this.blindHidden || !this.barsAligned()) return false;
-    const prev = previousPracticeCursor(this.bars, this.state.cursor, this.meta.settings);
+    const prev = this.previousCursor();
     return prev !== null && this.tape.has(prev);
   }
 
