@@ -2037,7 +2037,13 @@ export class PriceChart {
       const time = this.timeAt(x);
       if (time === null) return;
       const price = this.candles.coordinateToPrice(y);
-      handler({ time, price: price === null ? null : Number(price), clientX, clientY });
+      handler({
+        time,
+        price: price === null ? null : Number(price),
+        shift: false,
+        clientX,
+        clientY,
+      });
     };
     this.container.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -2202,7 +2208,8 @@ export class PriceChart {
         if (
           (e.target as Element).closest?.(
             '.handle, .hit, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
-          )        )
+          )
+        )
           return;
         if (this.selected) {
           this.selected = null;
