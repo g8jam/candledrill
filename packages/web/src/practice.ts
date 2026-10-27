@@ -2694,10 +2694,10 @@ export class PracticeView {
       else for (const p of this.palettes) p.collapse();
       return;
     }
-    // Alt+T: trendline tool (as in TradingView).
-    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyT') {
+    // Alt+T: trendline tool, Alt+R: rectangle tool (as in TradingView).
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'KeyT' || e.code === 'KeyR')) {
       e.preventDefault();
-      this.setDrawMode('tline');
+      this.setDrawMode(e.code === 'KeyT' ? 'tline' : 'rect');
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {

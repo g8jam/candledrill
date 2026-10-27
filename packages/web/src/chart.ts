@@ -1506,7 +1506,7 @@ export class PriceChart {
               y: Math.min(y1, y2),
               width: Math.abs(x2 - x1),
               height: Math.abs(y2 - y1),
-              fill: withAlpha(accent, 0.12),
+              fill: withAlpha(accent, 0.1),
               stroke: accent,
               'stroke-width': 1,
               'data-kind': 'rect',
