@@ -505,7 +505,19 @@ export class PriceChart {
     window.addEventListener('keyup', this.onShiftKey);
     // Capture phase, so the library never turns this wheel into a time-axis zoom.
     container.addEventListener('wheel', this.onPriceAxisWheel, { capture: true, passive: false });
+    this.overlay.addEventListener('wheel', this.onOverlayWheel, { passive: false });
   }
+
+  /** A wheel over a drawing or its text still zooms the chart: hand it to the chart below. */
+  private readonly onOverlayWheel = (e: WheelEvent): void => {
+    const below = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .find((n) => !this.overlay.contains(n) && this.container.contains(n));
+    if (!below) return;
+    e.preventDefault();
+    e.stopPropagation();
+    below.dispatchEvent(new WheelEvent('wheel', e));
+  };
 
   /**
    * Mouse wheel over the price scale stretches or squashes the price range around the
