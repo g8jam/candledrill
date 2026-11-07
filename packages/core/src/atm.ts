@@ -28,6 +28,8 @@ export interface AtmWindow {
 export const ATM_WINDOWS: readonly AtmWindow[] = [
   { key: 'asia', startMinute: 18 * 60, endMinute: 19 * 60 },
   { key: 'tokyo', startMinute: 21 * 60, endMinute: 22 * 60 },
+  // Local addition: New York 07:00-09:00 (Taipei 20:00-22:00 in winter, 19:00-21:00 in summer).
+  { key: 'ny', startMinute: 7 * 60, endMinute: 9 * 60 },
 ];
 
 export interface AtmSession {

@@ -750,7 +750,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                     additionalProperties: false,
                     required: ['kind', 'id', 't1', 'p1', 't2', 'p2'],
                     properties: {
-                      kind: { enum: ['ray', 'vline', 'fib', 'measure'] },
+                      kind: { enum: ['ray', 'vline', 'fib', 'ce', 'measure'] },
                       id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
                       t1: { type: 'integer' },
                       p1: { type: 'number', exclusiveMinimum: 0 },

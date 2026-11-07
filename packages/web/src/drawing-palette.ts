@@ -21,6 +21,7 @@ export type PaletteTool =
   | 'vline'
   | 'channel'
   | 'fib'
+  | 'ce'
   | 'measure'
   | 'prange'
   | 'rect'
@@ -56,6 +57,7 @@ const TOOLS: { key: Exclude<PaletteTool, null>; i18n: MessageKey }[] = [
   { key: 'vline', i18n: 'v1.toolVline' },
   { key: 'channel', i18n: 'v1.toolChannel' },
   { key: 'fib', i18n: 'v1.toolFib' },
+  { key: 'ce', i18n: 'v1.toolCe' },
   { key: 'measure', i18n: 'v1.toolMeasure' },
   { key: 'rect', i18n: 'pr.rect' },
   { key: 'prange', i18n: 'pr.prange' },

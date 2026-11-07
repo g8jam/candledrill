@@ -161,6 +161,7 @@ const TWO_POINT_KINDS = new Set([
   'ray',
   'vline',
   'fib',
+  'ce',
   'measure',
   'prange',
 ]);

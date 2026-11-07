@@ -197,6 +197,7 @@ export type Drawing =
   | { kind: 'ray'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'fib'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'ce'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'measure'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'channel';
@@ -312,6 +313,14 @@ type DragPart =
 
 /** Fibonacci retracement levels drawn between the two anchors. */
 export const FIB_LEVELS = [0, 0.5, 0.62, 0.702, 0.79, 1] as const;
+/** ATM session box colour and pivot label per window key. */
+const ATM_LOOK: Record<string, { color: string; tag: string }> = {
+  asia: { color: '#787b86', tag: 'AS' },
+  tokyo: { color: '#f23645', tag: 'TYO' },
+  ny: { color: '#5b9cf6', tag: 'NY' },
+};
+/** CE price levels, extended to the price axis. */
+export const CE_LEVELS = [1, 0.5, 0] as const;
 
 /** Price, tick, bar and percent distance between two anchors (measure tool label). */
 export function measureText(
@@ -1036,11 +1045,11 @@ export class PriceChart {
       ];
       const [yh, yl] = [y(s.high), y(s.low)];
       if ([bx1, bx2, hx1, hx2, lx1, lx2, yh, yl].some((v) => v === null)) continue;
-      const asia = s.key === 'asia';
+      const look = ATM_LOOK[s.key] ?? ATM_LOOK.tokyo!;
       out.push({
-        color: asia ? '#787b86' : '#f23645',
-        hiText: asia ? 'AS.H' : 'TYO.H',
-        loText: asia ? 'AS.L' : 'TYO.L',
+        color: look.color,
+        hiText: `${look.tag}.H`,
+        loText: `${look.tag}.L`,
         bx1: bx1!,
         bx2: bx2!,
         hx1: hx1!,
@@ -1207,6 +1216,7 @@ export class PriceChart {
             d.kind === 'measure' ||
             d.kind === 'prange' ||
             d.kind === 'fib' ||
+            d.kind === 'ce' ||
             d.kind === 'channel') &&
           a != null &&
           b != null &&
@@ -1296,6 +1306,7 @@ export class PriceChart {
         d.kind === 'ray' ||
         d.kind === 'vline' ||
         d.kind === 'fib' ||
+        d.kind === 'ce' ||
         d.kind === 'measure' ||
         d.kind === 'channel'
       ) {
@@ -1365,26 +1376,42 @@ export class PriceChart {
           nodes.push(svg('line', { x1, y1, x2: ex, y2: ey, stroke: color, 'stroke-width': 2 }));
           handle(d, 'p1', x1, y1);
           handle(d, 'p2', x2, y2);
-        } else if (d.kind === 'fib') {
+        } else if (d.kind === 'fib' || d.kind === 'ce') {
+          // Fib: levels span only the two anchors, the level number right of the line
+          // (p1 = 1, p2 = 0). CE: 1 / 0.5 / 0 extended to the price axis with the price
+          // (p1 = 0, p2 = 1). Both draw a dashed line between the anchors.
+          const fib = d.kind === 'fib';
           const left = Math.min(x1, x2);
+          const right = fib ? Math.max(x1, x2) : plotW;
           const dpv = tickDecimals(this.tick);
-          for (const lv of FIB_LEVELS) {
-            const price = d.p2 + (d.p1 - d.p2) * lv;
+          const textStyle = `fill: ${color}; stroke: none`;
+          nodes.push(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-dasharray': '5 4' }));
+          for (const lv of fib ? FIB_LEVELS : CE_LEVELS) {
+            const price = fib ? d.p2 + (d.p1 - d.p2) * lv : d.p1 + (d.p2 - d.p1) * lv;
             const y = this.yOf(price);
             if (y === null) continue;
+            const text = fib
+              ? String(lv)
+              : `${lv} (${price.toLocaleString('en-US', { minimumFractionDigits: dpv, maximumFractionDigits: dpv })})`;
+            const textW = text.length * 7;
             nodes.push(
               svg('line', {
                 x1: left,
                 y1: y,
-                x2: plotW,
+                x2: fib ? right : Math.max(left, right - textW - 10),
                 y2: y,
                 stroke: color,
-                'stroke-width': lv === 0 || lv === 1 ? 1.5 : 1,
-                'stroke-dasharray': lv === 0 || lv === 1 ? '' : '4 3',
               }),
             );
-            const label = svg('text', { x: left + 4, y: y - 3, 'data-kind': 'fib-level' });
-            label.textContent = `${(lv * 100).toFixed(1)}%  ${price.toFixed(dpv)}`;
+            const label = svg('text', {
+              x: fib ? right + 8 : right - 4,
+              y: y + 4,
+              'font-size': '12px',
+              'text-anchor': fib ? 'start' : 'end',
+              style: textStyle,
+              'data-kind': `${d.kind}-level`,
+            });
+            label.textContent = text;
             nodes.push(label);
           }
           handle(d, 'p1', x1, y1);
@@ -1996,6 +2023,7 @@ export class PriceChart {
       d.kind === 'ray' ||
       d.kind === 'vline' ||
       d.kind === 'fib' ||
+      d.kind === 'ce' ||
       d.kind === 'measure' ||
       d.kind === 'channel' ||
       d.kind === 'prange'

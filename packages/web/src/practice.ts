@@ -974,6 +974,7 @@ export class PracticeView {
       vline: 'v1.toolVline',
       channel: 'v1.toolChannel',
       fib: 'v1.toolFib',
+      ce: 'v1.toolCe',
       measure: 'v1.toolMeasure',
       rect: 'pr.rect',
       text: 'pr.textTool',
@@ -1281,6 +1282,7 @@ export class PracticeView {
       this.drawMode === 'arrow' ||
       this.drawMode === 'ray' ||
       this.drawMode === 'fib' ||
+      this.drawMode === 'ce' ||
       this.drawMode === 'measure' ||
       this.drawMode === 'channel' ||
       this.drawMode === 'prange'
