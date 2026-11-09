@@ -998,3 +998,24 @@ body.in-practice header.app select {
     display: none !important;
   }
 }
+
+/* ---------- ">>" scroll-to-latest button (bottom right of each chart, as in TradingView) */
+.scroll-latest {
+  position: absolute;
+  z-index: 7;
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.scroll-latest[hidden] {
+  display: none;
+}

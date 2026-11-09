@@ -190,6 +190,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.addText': '텍스트 추가',
   'pr.posRR': '손익비: {rr}',
   'pr.hideDrawings': '그림 숨기기',
+  'pr.scrollLatest': '최신 봉으로 이동',
   'pr.showDrawings': '그림 표시',
   'pr.taipeiTime': '대만 시간',
   'pr.hline': '수평선',

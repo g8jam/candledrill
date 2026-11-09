@@ -193,6 +193,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.addText': 'テキストを追加',
   'pr.posRR': 'リスクリワード比：{rr}',
   'pr.hideDrawings': '描画を非表示',
+  'pr.scrollLatest': '最新の足へ移動',
   'pr.showDrawings': '描画を表示',
   'pr.taipeiTime': '台湾時間',
   'pr.hline': '水平線',

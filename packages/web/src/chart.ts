@@ -376,6 +376,7 @@ export class PriceChart {
   private drawings: Drawing[] = [];
   private snapFn: (t: number) => number = (t) => t;
   private readonly overlay: SVGSVGElement;
+  private readonly latestBtn: HTMLButtonElement;
   private readonly styleBar: HTMLElement;
   private overlaySig = '';
   private raf = 0;
@@ -509,6 +510,22 @@ export class PriceChart {
     container.append(this.overlay, this.styleBar, this.legend);
     window.addEventListener('keydown', this.onShiftKey);
     this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.renderFutureAxis());
+    // TradingView's ">>" button: shown while the latest bar is off screen.
+    this.latestBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'scroll-latest',
+        title: `${t('pr.scrollLatest')} (Alt+Shift+→)`,
+        'aria-label': t('pr.scrollLatest'),
+        'data-i18n-aria': 'pr.scrollLatest',
+        hidden: '',
+      },
+      '»',
+    );
+    this.latestBtn.addEventListener('click', () => this.scrollToEnd());
+    container.append(this.latestBtn);
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.paintLatestBtn());
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
@@ -2970,6 +2987,16 @@ export class PriceChart {
 
   scrollToEnd(): void {
     this.chart.timeScale().scrollToRealTime();
+  }
+
+  private paintLatestBtn(): void {
+    const range = this.chart.timeScale().getVisibleLogicalRange();
+    const last = this.candles.data().length - 1;
+    const off = !!range && last >= 0 && range.to < last;
+    this.latestBtn.hidden = !off;
+    if (!off) return;
+    this.latestBtn.style.right = `${this.chart.priceScale('right').width() + 12}px`;
+    this.latestBtn.style.bottom = `${this.chart.timeScale().height() + 12}px`;
   }
 
   fit(): void {

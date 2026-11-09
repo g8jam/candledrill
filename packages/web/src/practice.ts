@@ -2702,6 +2702,12 @@ export class PracticeView {
       this.setDrawMode(e.code === 'KeyT' ? 'tline' : 'rect');
       return;
     }
+    // Alt+Shift+→: scroll every chart to the most recent bar (as in TradingView).
+    if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowRight') {
+      e.preventDefault();
+      for (const p of this.panes) p.chart.scrollToEnd();
+      return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const sel = this.panes.map((p) => p.chart.selectedDrawing).find((x) => x !== null);
       if (sel) this.deleteDrawing(sel);
