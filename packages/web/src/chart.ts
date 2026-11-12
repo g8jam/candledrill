@@ -796,8 +796,34 @@ export class PriceChart {
     this.renderIndicators();
   }
 
+  /**
+   * Several new bars at once (a jump, +10, a play burst). Indicators are recomputed once
+   * at the end instead of once per bar. A long batch replaces the series data in one go:
+   * appending bar by bar costs the chart library a time-scale rebuild per bar, which made
+   * long jumps freeze for tens of seconds.
+   */
+  updateBars(bars: readonly Bar[]): void {
+    if (bars.length === 0) return;
+    if (bars.length <= 50) {
+      for (const b of bars) this.updateBar(b, false);
+      this.renderIndicators();
+      return;
+    }
+    const merged = [...this.indicatorBars];
+    for (const b of bars) {
+      const last = merged.at(-1);
+      if (last && b.time < last.time) continue;
+      if (last && b.time === last.time) merged[merged.length - 1] = b;
+      else merged.push(b);
+    }
+    // Keep following the newest bar like update() does, unless the user scrolled back.
+    const pos = this.chart.timeScale().scrollPosition();
+    this.setBars(merged);
+    if (pos >= 0) this.chart.timeScale().scrollToPosition(pos, false);
+  }
+
   /** Append or update the last bar (bar.time must be >= the last bar time). */
-  updateBar(b: Bar): void {
+  updateBar(b: Bar, render = true): void {
     this.candles.update({
       time: this.ts(b.time),
       open: b.open,
@@ -815,7 +841,7 @@ export class PriceChart {
     } else {
       this.indicatorBars.push(b);
     }
-    this.renderIndicators();
+    if (render) this.renderIndicators();
   }
 
   get lastTime(): number | undefined {

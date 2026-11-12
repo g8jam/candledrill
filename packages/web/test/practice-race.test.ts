@@ -74,7 +74,7 @@ type ViewInternals = {
   drawings: Drawing[];
   playing: boolean;
   panes: {
-    chart: { updateBar(bar: Bar): void; destroy(): void };
+    chart: { updateBar(bar: Bar): void; updateBars(bars: Bar[]): void; destroy(): void };
     agg: { push(bar: Bar): { bar: Bar } };
   }[];
   els: Record<string, unknown>;
@@ -278,6 +278,7 @@ describe('forming paint does not overwrite newer session state', () => {
     internals(view).panes.push({
       chart: {
         updateBar: (b) => painted.push(b),
+        updateBars: (bs) => bs.forEach((b) => painted.push(b)),
         destroy: () => {},
       },
       agg: { push: (b) => ({ bar: b }) },

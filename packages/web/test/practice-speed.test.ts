@@ -192,13 +192,18 @@ describe('forming paint budget', () => {
     (
       view as unknown as {
         panes: {
-          chart: { updateBar(b: { time: number }): void; destroy(): void };
+          chart: {
+            updateBar(b: { time: number }): void;
+            updateBars(bs: { time: number }[]): void;
+            destroy(): void;
+          };
           agg: { push(b: unknown): { bar: unknown } };
         }[];
       }
     ).panes.push({
       chart: {
         updateBar: (b) => painted.push(b.time),
+        updateBars: (bs) => bs.forEach((b) => painted.push(b.time)),
         destroy: () => {},
       },
       agg: { push: (b) => ({ bar: b }) },
@@ -257,13 +262,18 @@ describe('forming paint budget', () => {
     (
       view as unknown as {
         panes: {
-          chart: { updateBar(b: { time: number }): void; destroy(): void };
+          chart: {
+            updateBar(b: { time: number }): void;
+            updateBars(bs: { time: number }[]): void;
+            destroy(): void;
+          };
           agg: { push(b: unknown): { bar: unknown } };
         }[];
       }
     ).panes.push({
       chart: {
         updateBar: (b) => painted.push(b.time),
+        updateBars: (bs) => bs.forEach((b) => painted.push(b.time)),
         destroy: () => {},
       },
       agg: { push: (b) => ({ bar: b }) },

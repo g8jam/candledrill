@@ -1940,9 +1940,7 @@ export class PracticeView {
 
   /** Chart only. Session bars are already committed, so a replayed paint must not push them again. */
   private paintBars(revealed: Bar[]): void {
-    for (const b of revealed) {
-      for (const p of this.panes) p.chart.updateBar(p.agg.push(b).bar);
-    }
+    for (const p of this.panes) p.chart.updateBars(revealed.map((b) => p.agg.push(b).bar));
   }
 
   private appendBars(revealed: Bar[]): void {
