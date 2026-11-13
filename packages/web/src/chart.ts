@@ -470,7 +470,8 @@ export class PriceChart {
         mouseWheel: true,
         pressedMouseMove: true,
         horzTouchDrag: true,
-        vertTouchDrag: false,
+        // Local: on a touch screen a vertical drag on the price axis only rescales when this is on.
+        vertTouchDrag: true,
       },
       handleScale: {
         mouseWheel: true,

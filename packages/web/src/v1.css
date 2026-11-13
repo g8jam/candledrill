@@ -1019,3 +1019,15 @@ body.in-practice header.app select {
 .scroll-latest[hidden] {
   display: none;
 }
+
+/* Local: tablets and narrow windows (768-1365px) keep Jump, undo/redo, linked charts and
+   Taiwan time: the toolbar wraps to a second row instead of hiding them. */
+@media (min-width: 768px) and (max-width: 1365px) and (min-height: 521px) {
+  #view-practice .toolbar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .toolbar .tb-wide {
+    display: flex !important;
+  }
+}
