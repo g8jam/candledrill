@@ -1117,3 +1117,10 @@ body.in-practice header.app select {
 .touch-cursor-ring[hidden] {
   display: none;
 }
+
+/* Local: no double-tap zoom anywhere. Quick taps on Step / +10 zoomed the page on iPad in
+   landscape (phones already had this). Pinch zoom still works; elements that set their own
+   touch-action (chart, overlay, grips) keep it. */
+* {
+  touch-action: manipulation;
+}
