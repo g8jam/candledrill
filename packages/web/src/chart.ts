@@ -77,7 +77,7 @@ import {
   type IndicatorSetting,
   type PaneIndicatorConfig,
 } from './indicator-prefs.js';
-import { t } from './i18n.js';
+import { t, type MessageKey } from './i18n.js';
 import { fromDisplayWall, toDisplayWall } from './display-time.js';
 import { getSettings } from './settings.js';
 import { el } from './format.js';
@@ -378,6 +378,20 @@ export class PriceChart {
   private snapFn: (t: number) => number = (t) => t;
   private readonly overlay: SVGSVGElement;
   private readonly latestBtn: HTMLButtonElement;
+  // Local: TradingView-mobile style touch drawing. While a tool is active on a touch screen
+  // a cursor sits on the chart; a one-finger drag moves it (the finger never covers the
+  // point) and a tap places a point at the cursor.
+  private touchPoints = 0;
+  private touchCursor: { x: number; y: number } | null = null;
+  private touchMoved = false;
+  private touchGesture: { x: number; y: number; cx: number; cy: number; moved: boolean } | null =
+    null;
+  private clickHandler: ((c: ChartClick) => void) | undefined;
+  private drawCancelHandler: (() => void) | undefined;
+  private readonly cursorRing: HTMLElement;
+  private readonly stepsBar: HTMLElement;
+  private readonly stepsNo: HTMLElement;
+  private readonly stepsMsg: HTMLElement;
   private readonly styleBar: HTMLElement;
   private overlaySig = '';
   private raf = 0;
@@ -532,6 +546,32 @@ export class PriceChart {
     this.latestBtn.addEventListener('click', () => this.scrollToEnd());
     container.append(this.latestBtn);
     this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.paintLatestBtn());
+    this.cursorRing = el('div', { class: 'touch-cursor-ring', hidden: '' });
+    this.stepsNo = el('span', { class: 'draw-steps-no' });
+    this.stepsMsg = el('span', { class: 'draw-steps-msg' });
+    const cancel = el('button', {
+      type: 'button',
+      class: 'draw-steps-cancel',
+      'data-testid': 'draw-steps-cancel',
+      title: t('pr.touchCancel'),
+      'aria-label': t('pr.touchCancel'),
+    });
+    cancel.innerHTML =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
+    cancel.addEventListener('click', () => this.drawCancelHandler?.());
+    this.stepsBar = el(
+      'div',
+      { class: 'draw-steps', 'data-testid': 'draw-steps', hidden: '' },
+      this.stepsNo,
+      this.stepsMsg,
+      cancel,
+    );
+    container.append(this.cursorRing, this.stepsBar);
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel'])
+      container.addEventListener(type, this.onCursorTouch as EventListener, {
+        capture: true,
+        passive: false,
+      });
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
@@ -605,8 +645,18 @@ export class PriceChart {
    * next click will place (bar time, magnet price), also right of the last bar where the
    * library crosshair has nothing to show. The library's own lines are hidden meanwhile.
    */
-  setDrawingMode(on: boolean): void {
+  setDrawingMode(on: boolean, points = 2): void {
     this.drawingMode = on;
+    // Touch screens: a cursor at the centre of the chart (tools placed by tapping only).
+    this.touchPoints = on ? points : 0;
+    this.touchMoved = false;
+    this.touchGesture = null;
+    this.touchCursor = null;
+    if (this.touchPoints > 0 && window.matchMedia?.('(pointer: coarse)').matches) {
+      const { plotW, plotH } = this.plotSize();
+      this.touchCursor = { x: plotW / 2, y: plotH / 2 };
+    }
+    this.applyTouchCursor();
     this.chart.applyOptions({
       crosshair: { vertLine: { visible: !on }, horzLine: { visible: !on } },
     });
@@ -670,6 +720,8 @@ export class PriceChart {
   /** Show a large anchor and rubber-band line while waiting for the second click. */
   setPendingAnchor(point: { t: number; p: number } | null): void {
     this.pendingAnchor = point;
+    this.touchMoved = false;
+    if (this.touchCursor) this.applyTouchCursor();
     this.overlaySig = '';
     this.renderOverlay();
   }
@@ -2154,6 +2206,7 @@ export class PriceChart {
         )
       )
         return;
+      if (this.touchCursor) return;
       this.barHoldStart = { x: e.clientX, y: e.clientY };
       if (this.barContextTimer) clearTimeout(this.barContextTimer);
       this.barContextTimer = setTimeout(() => {
@@ -2234,7 +2287,116 @@ export class PriceChart {
     return g;
   }
 
+  /** The cancel button on the touch drawing steps bar. */
+  onDrawCancel(handler: () => void): void {
+    this.drawCancelHandler = handler;
+  }
+
+  private plotSize(): { plotW: number; plotH: number } {
+    const rect = this.container.getBoundingClientRect();
+    return {
+      plotW: rect.width - this.chart.priceScale('right').width(),
+      plotH: rect.height - this.chart.timeScale().height(),
+    };
+  }
+
+  /** Crosshair, ring and steps bar for the touch cursor (all hidden without one). */
+  private applyTouchCursor(): void {
+    const c = this.touchCursor;
+    this.cursorRing.hidden = !c;
+    this.stepsBar.hidden = !c;
+    if (!c) return;
+    const time = this.timeAt(c.x);
+    const price = this.priceAt(c.y, c.x);
+    this.crosshair = time === null || price === null ? null : { t: time, p: price };
+    const y = price === null ? c.y : (this.yOf(price) ?? c.y);
+    this.cursorRing.style.left = `${c.x}px`;
+    this.cursorRing.style.top = `${y}px`;
+    const total = this.touchPoints * 2;
+    const placed = this.pendingAnchor ? 1 : 0;
+    const step = Math.min(total, placed * 2 + (this.touchMoved ? 2 : 1));
+    const key: MessageKey =
+      step === total
+        ? 'pr.touchTapFinish'
+        : step % 2 === 0
+          ? 'pr.touchTapFirst'
+          : placed
+            ? 'pr.touchMoveNext'
+            : 'pr.touchMoveStart';
+    this.stepsNo.textContent = `${step}/${total}`;
+    this.stepsMsg.textContent = t(key);
+    this.renderOverlay();
+  }
+
+  private readonly onCursorTouch = (e: TouchEvent): void => {
+    const cursor = this.touchCursor;
+    if (!cursor) return;
+    if (e.type === 'touchstart') {
+      this.touchGesture = null;
+      // Two fingers pinch-zoom the chart as usual.
+      if (e.touches.length !== 1) return;
+      const target = e.target as Element | null;
+      if (
+        target?.closest?.(
+          '.drawing-palette, .drawing-style-bar, .draw-steps, .scroll-latest, .tline-input, .bar-menu, button, input, select',
+        )
+      )
+        return;
+      const touch = e.touches[0]!;
+      const rect = this.container.getBoundingClientRect();
+      const { plotW, plotH } = this.plotSize();
+      // The price and time axes keep their own drag-to-scale.
+      if (touch.clientX - rect.left > plotW || touch.clientY - rect.top > plotH) return;
+      this.touchGesture = {
+        x: touch.clientX,
+        y: touch.clientY,
+        cx: cursor.x,
+        cy: cursor.y,
+        moved: false,
+      };
+    } else {
+      const g = this.touchGesture;
+      if (!g) return;
+      if (e.type === 'touchmove') {
+        const touch = e.touches[0];
+        if (e.touches.length !== 1 || !touch) {
+          this.touchGesture = null;
+          return;
+        }
+        const dx = touch.clientX - g.x;
+        const dy = touch.clientY - g.y;
+        if (g.moved || Math.hypot(dx, dy) >= 6) {
+          g.moved = true;
+          const { plotW, plotH } = this.plotSize();
+          this.touchCursor = {
+            x: Math.min(Math.max(g.cx + dx, 0), plotW - 1),
+            y: Math.min(Math.max(g.cy + dy, 0), plotH - 1),
+          };
+          this.touchMoved = true;
+          this.applyTouchCursor();
+        }
+      } else {
+        this.touchGesture = null;
+        if (e.type === 'touchend' && !g.moved) this.placeAtTouchCursor();
+      }
+    }
+    // The chart library never sees a cursor gesture (no pan, no native click).
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  private placeAtTouchCursor(): void {
+    const c = this.touchCursor;
+    if (!c || !this.clickHandler) return;
+    const time = this.timeAt(c.x);
+    const price = this.priceAt(c.y, c.x);
+    this.touchMoved = false;
+    this.clickHandler({ time, price, shift: this.shiftOn });
+    if (this.touchCursor) this.applyTouchCursor();
+  }
+
   onClick(handler: (c: ChartClick) => void): void {
+    this.clickHandler = handler;
     // Native clicks (not the library's click events, which merge quick clicks into a
     // double-click): every click counts, a click that was really a pan (moved > 4 px) does not.
     let down: { x: number; y: number } | null = null;
@@ -2336,7 +2498,7 @@ export class PriceChart {
       (e) => {
         const td = touchDown;
         touchDown = null;
-        if (!td || td.id !== e.pointerId || td.freehand) return;
+        if (!td || td.id !== e.pointerId || td.freehand || this.touchCursor) return;
         lastTouchTap = performance.now();
         tap(e);
       },

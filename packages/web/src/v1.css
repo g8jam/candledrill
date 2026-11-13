@@ -1059,3 +1059,61 @@ body.in-practice header.app select {
     display: none;
   }
 }
+
+/* Local: touch drawing (TradingView mobile style) — steps bar and the cursor ring. */
+.draw-steps {
+  position: absolute;
+  z-index: 8;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 90px);
+  padding: 4px 4px 4px 6px;
+  border-radius: 10px;
+  background: rgba(28, 28, 30, 0.92);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+.draw-steps[hidden] {
+  display: none;
+}
+.draw-steps-no {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+}
+.draw-steps-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.draw-steps-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 0;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+}
+.touch-cursor-ring {
+  position: absolute;
+  z-index: 6;
+  width: 14px;
+  height: 14px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.touch-cursor-ring[hidden] {
+  display: none;
+}

@@ -754,7 +754,18 @@ export class PracticeView {
     for (const p of this.panes) p.chart.setPendingAnchor(null);
     this.els.charts?.classList.toggle('drawing', mode !== null);
     for (const p of this.palettes) p.setActive(mode);
-    for (const p of this.panes) p.chart.setDrawingMode(mode !== null);
+    // Touch cursor steps: one point for these tools, two for the rest (none for freehand).
+    const points =
+      mode === null || mode === 'freehand'
+        ? 0
+        : mode === 'hline' ||
+            mode === 'vline' ||
+            mode === 'text' ||
+            mode === 'long' ||
+            mode === 'short'
+          ? 1
+          : 2;
+    for (const p of this.panes) p.chart.setDrawingMode(mode !== null, points);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
     if (mode === 'freehand') {
       for (const p of this.panes) {
@@ -1109,6 +1120,7 @@ export class PracticeView {
     indBtn.setAttribute('aria-expanded', 'false');
     indBtn.setAttribute('data-testid', 'indicators-toggle');
     chart.onClick((c) => this.onChartClick(pane, c.time, c.price, c.shift));
+    chart.onDrawCancel(() => this.setDrawMode(null));
     chart.setPositionLabeler((d) => this.positionLabel(d));
     chart.onDrawingEdit(
       (d) => void this.saveDrawings(this.drawings.map((x) => (x.id === d.id ? d : x))),

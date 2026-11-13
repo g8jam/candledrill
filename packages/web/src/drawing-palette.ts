@@ -214,7 +214,12 @@ export class DrawingPalette {
     this.hooks.select(next);
     // Phones: picking a tool folds the tools sheet so the chart is free to draw on (the Draw
     // button names the active tool). Desktop keeps the palette open for repeated drawing.
-    if (next !== null && PaletteLayout.compact()) this.setExpanded(false);
+    // Local: touch screens of any size fold it too (the chart takes the drawing gestures).
+    if (
+      next !== null &&
+      (PaletteLayout.compact() || window.matchMedia?.('(pointer: coarse)').matches)
+    )
+      this.setExpanded(false);
   }
 
   setActive(tool: PaletteTool): void {
