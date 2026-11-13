@@ -1256,6 +1256,7 @@ export class PriceChart {
         text(a.lx1, a.yl + 12, a.loText),
       );
     }
+    const coarseHandles = this.coarsePointer();
     const handle = (
       d: Drawing,
       part: DragPart,
@@ -1278,6 +1279,22 @@ export class PriceChart {
       });
       h.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, part));
       nodes.push(h);
+      // Local: touch screens get a finger-sized invisible grab area around each handle.
+      if (coarseHandles) {
+        const grab = 30;
+        const g = svg('rect', {
+          x: x - grab / 2,
+          y: y - grab / 2,
+          width: grab,
+          height: grab,
+          class: 'handle touch-grab',
+          style: 'fill: transparent; stroke: none',
+          'data-drawing': d.id,
+          'data-part': part,
+        });
+        g.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, part));
+        nodes.push(g);
+      }
     };
     // Invisible, wider targets so an unselected drawing can be clicked (selected) or dragged.
     const hit = (d: Drawing, node: SVGElement) => {
@@ -2402,7 +2419,7 @@ export class PriceChart {
     let down: { x: number; y: number } | null = null;
     // Local: on touch screens the chart library cancels the native click after a tap, so a
     // touch pointerup stands in for it (and a click that still follows it is ignored).
-    let touchDown: { id: number; freehand: boolean } | null = null;
+    let touchDown: { id: number; freehand: boolean; onShape: boolean } | null = null;
     let lastTouchTap = -Infinity;
     let freehandMoved = false;
     let stroke: number | null = null;
@@ -2411,8 +2428,18 @@ export class PriceChart {
       'pointerdown',
       (e) => {
         down = { x: e.clientX, y: e.clientY };
+        // A touch that starts on a drawing (select / drag) or a control is not a chart tap:
+        // the redraw on select replaces that element, so pointerup cannot tell by itself.
         touchDown =
-          e.pointerType === 'mouse' ? null : { id: e.pointerId, freehand: this.freehandMode };
+          e.pointerType === 'mouse'
+            ? null
+            : {
+                id: e.pointerId,
+                freehand: this.freehandMode,
+                onShape: !!(e.target as Element).closest?.(
+                  '.handle, .hit, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle, .drawing-palette, .scroll-latest, .tline-add, .tline-text',
+                ),
+              };
         if (!this.freehandMode) return;
         // The Draw palette lives inside the chart container: its buttons are not canvas.
         if ((e.target as Element).closest?.('.drawing-palette, .drawing-style-bar')) return;
@@ -2498,7 +2525,7 @@ export class PriceChart {
       (e) => {
         const td = touchDown;
         touchDown = null;
-        if (!td || td.id !== e.pointerId || td.freehand || this.touchCursor) return;
+        if (!td || td.id !== e.pointerId || td.freehand || td.onShape || this.touchCursor) return;
         lastTouchTap = performance.now();
         tap(e);
       },
