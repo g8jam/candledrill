@@ -87,7 +87,7 @@ footer.app {
   flex: 1 1 auto;
   min-width: 8px;
 }
-.toolbar .replay {
+:is(.toolbar, .tabbar) .replay {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -96,15 +96,15 @@ footer.app {
   border-radius: 8px;
   background: var(--panel-2);
 }
-.toolbar .replay button {
+:is(.toolbar, .tabbar) .replay button {
   border-color: transparent;
   background: transparent;
 }
-.toolbar .replay button.primary {
+:is(.toolbar, .tabbar) .replay button.primary {
   background: var(--accent);
   color: var(--accent-ink);
 }
-.toolbar .replay .speed {
+:is(.toolbar, .tabbar) .replay .speed {
   padding: 0 4px;
 }
 .toolbar .clock {
@@ -1029,5 +1029,33 @@ body.in-practice header.app select {
   }
   .toolbar .tb-wide {
     display: flex !important;
+  }
+}
+
+/* Local: replay controls (Back, bar back, Play, Step, +10, speed) at the right end of the
+   bottom tab strip. Phones and short screens keep using the trade bar's copy. */
+.bottom .tabbar {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.bottom .tabbar .replay {
+  margin-left: auto;
+  flex-shrink: 0;
+  height: 30px;
+  box-sizing: border-box;
+}
+.bottom .tabbar .replay button,
+.bottom .tabbar .replay select {
+  height: 24px;
+}
+.bottom .tabbar .replay .speed > span[data-i18n='pr.speed'] {
+  display: none;
+}
+.bottom .tabbar .replay + .bottom-toggle {
+  margin-left: 6px;
+}
+@media (max-width: 899px), (max-height: 520px) and (max-width: 1199px) {
+  .bottom .tabbar .replay {
+    display: none;
   }
 }

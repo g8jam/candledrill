@@ -657,6 +657,9 @@ export class PracticeView {
       if (on) this.bottomOpened();
       else overlays.closed('bottom');
     };
+    // Local: the replay controls sit at the right end of the bottom tab strip, not the toolbar.
+    const replayGroup = toolbar.querySelector('.replay');
+    if (replayGroup) bottom.querySelector('.bottom-toggle')?.before(replayGroup);
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
     this.summary = new CompletionSummary(summary, () => {

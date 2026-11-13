@@ -592,10 +592,10 @@ header.app > :last-child {
   background: var(--panel-2);
 }
 /* Toolbar: one control style for the replay group (outlined like its neighbours). */
-.toolbar .replay button:not(.primary) {
+:is(.toolbar, .tabbar) .replay button:not(.primary) {
   border: 1px solid transparent;
 }
-.toolbar .replay button:not(.primary):hover {
+:is(.toolbar, .tabbar) .replay button:not(.primary):hover {
   border-color: var(--border);
 }
 /* Checkbox labels in toolbars read as normal text, not disabled. */
