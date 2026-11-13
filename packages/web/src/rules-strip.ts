@@ -318,6 +318,8 @@ export class RulesStrip {
 
   render(settings: SessionSettings, state: SessionState): void {
     const metrics = practiceGlance(settings, state);
+    // Local: no rules, no strip (the "no rules set" line only took chart space).
+    this.el.style.display = metrics.length === 0 ? 'none' : '';
     if (metrics.length === 0) {
       this.body.replaceChildren(
         el('p', { class: 'muted rules-strip-empty', 'data-i18n': 'pr.noRules' }, t('pr.noRules')),
