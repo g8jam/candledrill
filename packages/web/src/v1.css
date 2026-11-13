@@ -1176,3 +1176,33 @@ body.in-practice header.app select {
     padding-bottom: 12px;
   }
 }
+
+/* Local: touch screens — a taller bottom strip with finger-size replay controls. */
+@media (pointer: coarse) {
+  .bottom .tabbar {
+    height: 48px;
+    align-items: center;
+  }
+  .bottom:not(.expanded) {
+    flex-shrink: 0;
+    height: calc(49px + env(safe-area-inset-bottom));
+  }
+  .bottom .tabbar .replay {
+    height: 44px;
+    gap: 2px;
+  }
+  .bottom .tabbar button[role='tab'],
+  .bottom .tabbar .side-toggle {
+    padding: 0 6px;
+  }
+  .bottom .tabbar .replay button {
+    height: 38px;
+    min-width: 46px;
+    padding: 0 10px;
+    font-size: 15px;
+  }
+  .bottom .tabbar .replay select {
+    height: 38px;
+    font-size: 15px;
+  }
+}
