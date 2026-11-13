@@ -1124,3 +1124,37 @@ body.in-practice header.app select {
 * {
   touch-action: manipulation;
 }
+
+/* Local: clock and P&L chip at the right of the bottom tab strip, before the replay controls. */
+.bottom .tabbar .clock {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bottom .tabbar .pnl-chip {
+  flex-shrink: 0;
+  align-self: center;
+  height: 24px;
+}
+.bottom .tabbar .pnl-chip + .replay {
+  margin-left: 8px;
+}
+@media (max-width: 1365px) {
+  .bottom .tabbar button[role='tab'],
+  .bottom .tabbar .side-toggle {
+    padding: 0 7px;
+  }
+}
+/* Local: tablets keep the toolbar to one row — the Play button already shows paused / playing,
+   and the session name stays while the symbol beside it goes. */
+@media (min-width: 768px) and (max-width: 1365px) {
+  #view-practice .toolbar .replay-state,
+  #view-practice .toolbar > .muted:not(.clock) {
+    display: none !important;
+  }
+}

@@ -662,6 +662,8 @@ export class PracticeView {
     if (replayGroup) bottom.querySelector('.bottom-toggle')?.before(replayGroup);
     // Local: the side-rail toggle sits right after the last tab (Export).
     [...bottom.querySelectorAll('.tabbar [role=tab]')].at(-1)?.after(sideToggle);
+    // Local: clock and P&L chip move down too, so the toolbar keeps to one row on tablets.
+    (replayGroup ?? bottom.querySelector('.bottom-toggle'))?.before(clock, this.pnlChip!);
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
     this.summary = new CompletionSummary(summary, () => {
