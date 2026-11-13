@@ -1158,3 +1158,21 @@ body.in-practice header.app select {
     display: none !important;
   }
 }
+
+/* Local: practice fits the visible screen. 100vh on iPad Safari is the height with its bars
+   hidden, so the page ran past the bottom and Step / the tab strip were out of reach while
+   the toolbar showed. 100dvh is the height actually visible. */
+@supports (height: 100dvh) {
+  body.in-practice {
+    min-height: 0;
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+/* Local: touch screens leave a small gap under the tab strip, away from the home-gesture edge. */
+@media (pointer: coarse) {
+  #view-practice .practice-root {
+    box-sizing: border-box;
+    padding-bottom: 12px;
+  }
+}
