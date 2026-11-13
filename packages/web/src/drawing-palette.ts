@@ -14,6 +14,17 @@ export const PaletteLayout = {
     !!window.matchMedia?.('(max-width: 899px), (max-height: 520px)').matches,
 };
 
+/** Local: on-screen stand-in for holding Shift (keeps trendlines / rays horizontal), for
+ * touch screens without a Shift key. Shared by every chart pane. */
+export const HorizontalLock = {
+  on: false,
+  listeners: new Set<() => void>(),
+  toggle(): void {
+    this.on = !this.on;
+    for (const f of this.listeners) f();
+  },
+};
+
 export type PaletteTool =
   | 'hline'
   | 'tline'
@@ -76,6 +87,7 @@ export class DrawingPalette {
   private active: PaletteTool = null;
   private expanded: boolean;
   private offSettings: () => void = () => undefined;
+  private syncHLock: () => void = () => undefined;
 
   constructor(
     container: HTMLElement,
@@ -152,6 +164,24 @@ export class DrawingPalette {
       saveSettings({ ...getSettings(), magnet: !getSettings().magnet }),
     );
     this.toolsEl.append(magnetBtn);
+
+    const hLockBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small',
+        title: t('pr.hLock'),
+        'data-testid': 'palette-hlock',
+        'data-i18n': 'pr.hLock',
+        'data-i18n-title': 'pr.hLock',
+      },
+      t('pr.hLock'),
+    );
+    this.syncHLock = () => hLockBtn.setAttribute('aria-pressed', String(HorizontalLock.on));
+    this.syncHLock();
+    HorizontalLock.listeners.add(this.syncHLock);
+    hLockBtn.addEventListener('click', () => HorizontalLock.toggle());
+    this.toolsEl.append(hLockBtn);
 
     const clear = el(
       'button',
@@ -235,6 +265,7 @@ export class DrawingPalette {
 
   destroy(): void {
     this.offSettings();
+    HorizontalLock.listeners.delete(this.syncHLock);
     this.root.remove();
   }
 }

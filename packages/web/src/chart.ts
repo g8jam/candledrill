@@ -81,6 +81,7 @@ import { t } from './i18n.js';
 import { fromDisplayWall, toDisplayWall } from './display-time.js';
 import { getSettings } from './settings.js';
 import { el } from './format.js';
+import { HorizontalLock } from './drawing-palette.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
 export function tradeWindow(
@@ -419,6 +420,10 @@ export class PriceChart {
   private pendingAnchor: { t: number; p: number } | null = null;
   private crosshair: { t: number; p: number } | null = null;
   private shiftDown = false;
+  /** Shift held, or its on-screen stand-in (the palette Horizontal button) switched on. */
+  private get shiftOn(): boolean {
+    return this.shiftDown || HorizontalLock.on;
+  }
   private drawingsLoaded = false;
   /** Last press on a line's text, to detect a double-click across redraws. */
   private lastTextDown: { id: string; at: number; x: number; y: number } | null = null;
@@ -1801,7 +1806,7 @@ export class PriceChart {
 
   /** Crosshair while drawing and the trendline rubber-band: redrawn on every mouse move. */
   private renderDynamic(plotW: number): void {
-    const sig = `${plotW}|${this.drawingMode}|${this.shiftDown}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(this.dragCursor)}`;
+    const sig = `${plotW}|${this.drawingMode}|${this.shiftOn}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}|${JSON.stringify(this.dragCursor)}`;
     if (sig === this.dynSig) return;
     this.dynSig = sig;
     const accent = this.theme.accent;
@@ -1813,7 +1818,7 @@ export class PriceChart {
     if (cursor) {
       const x = this.xOf(cursor.t);
       const price =
-        !this.dragCursor && this.shiftDown && this.pendingAnchor ? this.pendingAnchor.p : cursor.p;
+        !this.dragCursor && this.shiftOn && this.pendingAnchor ? this.pendingAnchor.p : cursor.p;
       const y = this.yOf(price);
       const style = {
         stroke: withAlpha(this.theme.text, 0.6),
@@ -1848,7 +1853,7 @@ export class PriceChart {
       const y1 = this.yOf(this.pendingAnchor.p);
       const x2 = this.xOf(this.crosshair.t);
       // Shift keeps the line horizontal.
-      const y2 = this.yOf(this.shiftDown ? this.pendingAnchor.p : this.crosshair.p);
+      const y2 = this.yOf(this.shiftOn ? this.pendingAnchor.p : this.crosshair.p);
       if (x1 != null && y1 != null && x2 != null && y2 != null) {
         nodes.push(
           svg('line', {
@@ -1940,7 +1945,7 @@ export class PriceChart {
       const { start, part } = this.drag;
       // Shift keeps a trendline or ray horizontal while dragging one of its ends.
       const point =
-        e.shiftKey &&
+        (e.shiftKey || HorizontalLock.on) &&
         (start.kind === 'tline' || start.kind === 'ray') &&
         (part === 'p1' || part === 'p2')
           ? part === 'p1'
@@ -2308,7 +2313,11 @@ export class PriceChart {
         if (x > plotW) return;
         const price = getSettings().magnet ? this.priceAt(y, x) : this.candles.coordinateToPrice(y);
         const time = this.timeAt(x);
-        handler({ time, price: price === null ? null : Number(price), shift: e.shiftKey });
+        handler({
+          time,
+          price: price === null ? null : Number(price),
+          shift: e.shiftKey || HorizontalLock.on,
+        });
       },
       true,
     );

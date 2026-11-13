@@ -184,6 +184,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.posRR': '风险/回报比：{rr}',
   'pr.hideDrawings': '隐藏图形',
   'pr.scrollLatest': '滚动到最新K线',
+  'pr.hLock': '水平',
   'pr.showDrawings': '显示图形',
   'pr.taipeiTime': '台湾时间',
   'pr.hline': '水平线',
