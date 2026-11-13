@@ -2238,6 +2238,10 @@ export class PriceChart {
     // Native clicks (not the library's click events, which merge quick clicks into a
     // double-click): every click counts, a click that was really a pan (moved > 4 px) does not.
     let down: { x: number; y: number } | null = null;
+    // Local: on touch screens the chart library cancels the native click after a tap, so a
+    // touch pointerup stands in for it (and a click that still follows it is ignored).
+    let touchDown: { id: number; freehand: boolean } | null = null;
+    let lastTouchTap = -Infinity;
     let freehandMoved = false;
     let stroke: number | null = null;
     // Capture phase: the chart library may stop these events from bubbling.
@@ -2245,6 +2249,8 @@ export class PriceChart {
       'pointerdown',
       (e) => {
         down = { x: e.clientX, y: e.clientY };
+        touchDown =
+          e.pointerType === 'mouse' ? null : { id: e.pointerId, freehand: this.freehandMode };
         if (!this.freehandMode) return;
         // The Draw palette lives inside the chart container: its buttons are not canvas.
         if ((e.target as Element).closest?.('.drawing-palette, .drawing-style-bar')) return;
@@ -2285,39 +2291,54 @@ export class PriceChart {
       },
       true,
     );
+    const tap = (e: MouseEvent): void => {
+      if (this.swallowClick) {
+        this.swallowClick = false;
+        return;
+      }
+      if (this.freehandMode) return;
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
+      if (
+        (e.target as Element).closest?.(
+          '.handle, .hit, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
+        )
+      )
+        return;
+      if (this.selected) {
+        this.selected = null;
+        this.syncStyleBar();
+        this.overlaySig = '';
+        this.renderOverlay();
+      }
+      const rect = this.container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const plotW = rect.width - this.chart.priceScale('right').width();
+      if (x > plotW) return;
+      const price = getSettings().magnet ? this.priceAt(y, x) : this.candles.coordinateToPrice(y);
+      const time = this.timeAt(x);
+      handler({
+        time,
+        price: price === null ? null : Number(price),
+        shift: e.shiftKey || HorizontalLock.on,
+      });
+    };
     this.container.addEventListener(
       'click',
       (e) => {
-        if (this.swallowClick) {
-          this.swallowClick = false;
-          return;
-        }
-        if (this.freehandMode) return;
-        if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
-        if (
-          (e.target as Element).closest?.(
-            '.handle, .hit, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
-          )
-        )
-          return;
-        if (this.selected) {
-          this.selected = null;
-          this.syncStyleBar();
-          this.overlaySig = '';
-          this.renderOverlay();
-        }
-        const rect = this.container.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const plotW = rect.width - this.chart.priceScale('right').width();
-        if (x > plotW) return;
-        const price = getSettings().magnet ? this.priceAt(y, x) : this.candles.coordinateToPrice(y);
-        const time = this.timeAt(x);
-        handler({
-          time,
-          price: price === null ? null : Number(price),
-          shift: e.shiftKey || HorizontalLock.on,
-        });
+        if (performance.now() - lastTouchTap < 800) return;
+        tap(e);
+      },
+      true,
+    );
+    this.container.addEventListener(
+      'pointerup',
+      (e) => {
+        const td = touchDown;
+        touchDown = null;
+        if (!td || td.id !== e.pointerId || td.freehand) return;
+        lastTouchTap = performance.now();
+        tap(e);
       },
       true,
     );
