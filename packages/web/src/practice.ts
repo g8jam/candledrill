@@ -660,6 +660,8 @@ export class PracticeView {
     // Local: the replay controls sit at the right end of the bottom tab strip, not the toolbar.
     const replayGroup = toolbar.querySelector('.replay');
     if (replayGroup) bottom.querySelector('.bottom-toggle')?.before(replayGroup);
+    // Local: the side-rail toggle sits right after the last tab (Export).
+    [...bottom.querySelectorAll('.tabbar [role=tab]')].at(-1)?.after(sideToggle);
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
     this.summary = new CompletionSummary(summary, () => {
