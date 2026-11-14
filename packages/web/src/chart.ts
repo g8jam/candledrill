@@ -326,7 +326,7 @@ const ATM_LOOK: Record<string, { color: string; tag: string }> = {
   ny: { color: '#5b9cf6', tag: 'NY' },
 };
 /** HTF candle layout right of the last bar, in bar widths. */
-const HTF_PAD = 4;
+const HTF_PAD = 6;
 const HTF_BODY = 2;
 const HTF_STEP = 3;
 const HTF_SET_GAP = 4;
