@@ -2698,9 +2698,13 @@ export class PracticeView {
       }
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+    // Local: match the physical key too, so an iPad keyboard with Zhuyin (or any IME) active
+    // still undoes / redoes.
+    const zKey = e.code === 'KeyZ' || e.key.toLowerCase() === 'z';
+    const yKey = e.code === 'KeyY' || e.key.toLowerCase() === 'y';
+    if ((e.ctrlKey || e.metaKey) && (zKey || yKey)) {
       e.preventDefault();
-      void (e.key === 'y' || e.shiftKey ? this.redoDrawing() : this.undoDrawing());
+      void (yKey || e.shiftKey ? this.redoDrawing() : this.undoDrawing());
       return;
     }
     if (e.key === 'Escape') {
