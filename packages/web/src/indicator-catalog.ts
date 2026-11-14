@@ -67,6 +67,12 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['atm', 'asia', 'tokyo', 'session', 'killzone', 'zone'],
     singleton: true,
   },
+  {
+    kind: 'htf',
+    category: 'trend',
+    aliases: ['htf', 'higher timeframe', 'candles', 'ict', 'fadi', '高週期', 'k線'],
+    singleton: false,
+  },
   { kind: 'rsi', category: 'momentum', aliases: ['rsi', 'relative strength'], singleton: false },
   { kind: 'macd', category: 'momentum', aliases: ['macd'], singleton: false },
   {

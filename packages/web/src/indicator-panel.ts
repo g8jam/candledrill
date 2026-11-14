@@ -13,7 +13,9 @@ import {
   type IndicatorCategory,
 } from './indicator-catalog.js';
 import {
+  HTF_MINUTES,
   MAX_VISIBLE_OVERLAYS,
+  htfLabel,
   createIndicator,
   isOverlayKind,
   loadIndicatorConfig,
@@ -47,6 +49,7 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   donchian: 'ind.donchian',
   fvg: 'ind.fvg',
   atm: 'ind.atm',
+  htf: 'ind.htf',
   rsi: 'ind.rsi',
   macd: 'ind.macd',
   atr: 'ind.atr',
@@ -341,6 +344,7 @@ export class IndicatorPanel {
       return `${name} ${s.period}`;
     }
     if (s.kind === 'orb') return `${name} ${s.minutes ?? 30}`;
+    if (s.kind === 'htf') return `${name} ${htfLabel(s.minutes ?? 60)}`;
     if (s.kind === 'zigzag') return `${name} ${s.percent ?? 5}`;
     if (
       s.period &&
@@ -373,6 +377,26 @@ export class IndicatorPanel {
     const wrap = el('div', { class: 'indicator-controls' });
     if (this.appendExtraControls(s, wrap)) {
       wrap.append(this.colorControl(s));
+      return wrap;
+    }
+    if (s.kind === 'htf') {
+      const sel = el('select', { 'data-testid': `ind-htf-tf-${s.id}` }) as HTMLSelectElement;
+      for (const m of HTF_MINUTES) {
+        const attrs: Record<string, string> = { value: String(m) };
+        if ((s.minutes ?? 60) === m) attrs.selected = 'selected';
+        sel.append(el('option', attrs, htfLabel(m)));
+      }
+      sel.addEventListener('change', () => {
+        s.minutes = Number(sel.value);
+        this.commit();
+      });
+      wrap.append(
+        el('label', { class: 'ind-ctrl' }, t('ind.htfTf'), sel),
+        this.numControl(t('ind.htfCount'), s.period ?? 5, (v) => {
+          s.period = Math.min(v, 30);
+          this.commit();
+        }),
+      );
       return wrap;
     }
     if (s.kind === 'orb') {

@@ -33,7 +33,8 @@ export type OverlayKind =
   | 'stderr'
   | 'priceChannel'
   | 'fvg'
-  | 'atm';
+  | 'atm'
+  | 'htf';
 export type PaneKind =
   | 'rsi'
   | 'macd'
@@ -153,6 +154,7 @@ type ExtraKind = Exclude<
   | 'adx'
   | 'fvg'
   | 'atm'
+  | 'htf'
 >;
 
 const MORE_TEMPLATES: Record<ExtraKind, IndicatorSetting> = {
@@ -248,6 +250,22 @@ function isExtraKind(kind: IndicatorKind): kind is ExtraKind {
 }
 const FVG_TEMPLATE: IndicatorSetting = { id: 'fvg', kind: 'fvg', visible: true, color: '#5b9cf6' };
 const ATM_TEMPLATE: IndicatorSetting = { id: 'atm', kind: 'atm', visible: true, color: '#787b86' };
+// HTF candles: `minutes` is the higher timeframe, `period` the number of candles.
+const HTF_TEMPLATE: IndicatorSetting = {
+  id: 'htf',
+  kind: 'htf',
+  visible: true,
+  minutes: 60,
+  period: 5,
+  color: '#787b86',
+};
+/** Timeframes offered for HTF candles, in minutes (1440 = daily, 10080 = weekly). */
+export const HTF_MINUTES = [5, 15, 30, 60, 240, 1440, 10080] as const;
+export function htfLabel(minutes: number): string {
+  if (minutes >= 10080) return 'W';
+  if (minutes >= 1440) return 'D';
+  return minutes >= 60 ? `${minutes / 60}H` : `${minutes}m`;
+}
 
 function defaultConfig(): PaneIndicatorConfig {
   return {
@@ -279,6 +297,8 @@ export function templateFor(kind: IndicatorKind): IndicatorSetting {
       return { ...FVG_TEMPLATE };
     case 'atm':
       return { ...ATM_TEMPLATE };
+    case 'htf':
+      return { ...HTF_TEMPLATE };
     case 'orb':
     case 'donchian':
     case 'stochastic':
@@ -310,6 +330,7 @@ function isOriginalKind(s: unknown): s is IndicatorKind {
     s === 'donchian' ||
     s === 'fvg' ||
     s === 'atm' ||
+    s === 'htf' ||
     s === 'rsi' ||
     s === 'macd' ||
     s === 'atr' ||
@@ -343,6 +364,7 @@ export function isOverlayKind(kind: IndicatorKind): kind is OverlayKind {
     case 'priceChannel':
     case 'fvg':
     case 'atm':
+    case 'htf':
       return true;
     case 'rsi':
     case 'macd':

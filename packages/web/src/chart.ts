@@ -13,6 +13,7 @@ import {
   LineStyle,
   createChart,
   createSeriesMarkers,
+  type AutoscaleInfo,
   type IChartApi,
   type IPaneApi,
   type Logical,
@@ -26,11 +27,13 @@ import {
 import {
   atmSessions,
   fvg,
+  htfCandles,
   roundToTick,
   tickDecimals,
   type AtmSession,
   type Bar,
   type FvgZone,
+  type HtfSet,
 } from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
@@ -73,6 +76,8 @@ import {
   zigzag,
 } from './indicators.js';
 import {
+  HTF_MINUTES,
+  htfLabel,
   isOverlayKind,
   type IndicatorSetting,
   type PaneIndicatorConfig,
@@ -320,6 +325,21 @@ const ATM_LOOK: Record<string, { color: string; tag: string }> = {
   tokyo: { color: '#f23645', tag: 'TYO' },
   ny: { color: '#5b9cf6', tag: 'NY' },
 };
+/** HTF candle layout right of the last bar, in bar widths. */
+const HTF_PAD = 4;
+const HTF_BODY = 2;
+const HTF_STEP = 3;
+const HTF_SET_GAP = 4;
+/** Time left in an HTF candle: "4:05", "2h 07m", "3d 5h". */
+function remainingText(sec: number): string {
+  if (sec <= 0) return '';
+  const d = Math.floor(sec / 86_400);
+  const h = Math.floor((sec % 86_400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${String(m).padStart(2, '0')}m`;
+  return `${m}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+}
 /** CE price levels, extended to the price axis. */
 export const CE_LEVELS = [1, 0.5, 0] as const;
 
@@ -423,6 +443,8 @@ export class PriceChart {
   private fvgZones: FvgZone[] = [];
   private fvgColor = '#5b9cf6';
   private atmList: AtmSession[] = [];
+  private htfList: HtfSet[] = [];
+  private rightOffsetBars = 8;
   private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
   private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
   private indicatorPane: IPaneApi<Time> | undefined = undefined;
@@ -505,6 +527,18 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
       borderVisible: false,
+      // Local: auto-fit also covers the HTF candles drawn right of the last bar.
+      autoscaleInfoProvider: (base: () => AutoscaleInfo | null) => {
+        const info = base();
+        if (!info?.priceRange || !this.htfList.length) return info;
+        let { minValue, maxValue } = info.priceRange;
+        for (const set of this.htfList)
+          for (const c of set.candles) {
+            minValue = Math.min(minValue, c.low);
+            maxValue = Math.max(maxValue, c.high);
+          }
+        return { ...info, priceRange: { minValue, maxValue } };
+      },
     });
     this.volume = this.chart.addSeries(HistogramSeries, {
       priceScaleId: 'vol',
@@ -1013,6 +1047,7 @@ export class PriceChart {
         this.drawings.length ||
         this.fvgZones.length ||
         this.atmList.length ||
+        this.htfList.length ||
         this.orderLineSpecs.some((l) => l.orderId !== undefined)
       )
         this.loop();
@@ -1164,6 +1199,65 @@ export class PriceChart {
     return out;
   }
 
+  /** Pixel shapes of the HTF candle sets, laid out right of the last bar in bar units. */
+  private htfShapes() {
+    const n = this.indicatorBars.length;
+    if (!this.htfList.length || n === 0) return [];
+    const ts = this.timeScale();
+    const x = (logical: number) => {
+      const v = ts.logicalToCoordinate(logical as Logical);
+      return v === null ? null : Math.round(v);
+    };
+    const y = (p: number) => {
+      const v = this.yOf(p);
+      return v === null ? null : Math.round(v);
+    };
+    const now = this.indicatorBars[n - 1]!.time + this.barSeconds;
+    let left = n - 1 + HTF_PAD;
+    const out = [];
+    for (const set of this.htfList) {
+      const slot = (i: number) => left + i * HTF_STEP;
+      const candles = [];
+      for (const [i, c] of set.candles.entries()) {
+        const [x1, x2, yo, yc, yh, yl] = [
+          x(slot(i)),
+          x(slot(i) + HTF_BODY),
+          y(c.open),
+          y(c.close),
+          y(c.high),
+          y(c.low),
+        ];
+        if ([x1, x2, yo, yc, yh, yl].some((v) => v === null)) continue;
+        candles.push({
+          x1: x1!,
+          x2: x2!,
+          yo: yo!,
+          yc: yc!,
+          yh: yh!,
+          yl: yl!,
+          up: c.close >= c.open,
+        });
+      }
+      const right = x(slot(set.candles.length - 1) + HTF_BODY);
+      const gaps = [
+        ...set.fvgs.map((g) => ({ ...g, vi: false })),
+        ...set.volumeImbalances.map((g) => ({ ...g, vi: true })),
+      ];
+      const boxes = gaps.flatMap((g) => {
+        const [bx, yt, yb] = [x(slot(g.index) + HTF_BODY / 2), y(g.top), y(g.bottom)];
+        return bx === null || right === null || yt === null || yb === null
+          ? []
+          : [{ x1: bx, x2: right, yt, yb, up: g.kind === 'bull', vi: g.vi }];
+      });
+      const lx = x(left);
+      const ly = y(Math.max(...set.candles.map((c) => c.high)));
+      const label = `${htfLabel(set.tfSeconds / 60)}  ${remainingText(set.end - now)}`.trim();
+      out.push({ candles, boxes, label, lx, ly });
+      left += set.candles.length * HTF_STEP + HTF_SET_GAP;
+    }
+    return out;
+  }
+
   private timeScale() {
     return this.chart.timeScale();
   }
@@ -1187,10 +1281,11 @@ export class PriceChart {
     });
     const fvgRects = this.fvgRects();
     const atm = this.atmShapes();
+    const htf = this.htfShapes();
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}|${JSON.stringify(htf)}`;
     // Mouse moves only change the crosshair / rubber-band layer; keep the rest as is.
     if (sig === this.overlaySig) {
       this.renderDynamic(plotW);
@@ -1255,6 +1350,52 @@ export class PriceChart {
         text(a.hx1, a.yh - 4, a.hiText),
         text(a.lx1, a.yl + 12, a.loText),
       );
+    }
+    for (const set of htf) {
+      const quiet = { 'pointer-events': 'none' };
+      for (const b of set.boxes) {
+        nodes.push(
+          svg('rect', {
+            x: b.x1,
+            y: Math.min(b.yt, b.yb),
+            width: Math.max(1, b.x2 - b.x1),
+            height: Math.max(1, Math.abs(b.yb - b.yt)),
+            fill: b.vi
+              ? withAlpha('#f2a93b', 0.35)
+              : withAlpha(b.up ? this.theme.up : this.theme.down, 0.22),
+            'data-kind': b.vi ? 'htf-vi' : 'htf-fvg',
+            ...quiet,
+          }),
+        );
+      }
+      for (const c of set.candles) {
+        const color = c.up ? this.theme.up : this.theme.down;
+        const mid = Math.round((c.x1 + c.x2) / 2);
+        nodes.push(
+          svg('line', { x1: mid, x2: mid, y1: c.yh, y2: c.yl, stroke: color, ...quiet }),
+          svg('rect', {
+            x: c.x1,
+            y: Math.min(c.yo, c.yc),
+            width: Math.max(1, c.x2 - c.x1),
+            height: Math.max(1, Math.abs(c.yc - c.yo)),
+            fill: color,
+            'data-kind': 'htf-candle',
+            ...quiet,
+          }),
+        );
+      }
+      if (set.lx !== null && set.ly !== null) {
+        const label = svg('text', {
+          x: set.lx,
+          y: set.ly - 8,
+          fill: this.theme.text,
+          'font-size': '10px',
+          'data-kind': 'htf-label',
+          ...quiet,
+        });
+        label.textContent = set.label;
+        nodes.push(label);
+      }
     }
     const coarseHandles = this.coarsePointer();
     const handle = (
@@ -2827,7 +2968,7 @@ export class PriceChart {
       return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
     }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
-    if (s.kind === 'fvg' || s.kind === 'atm') return [];
+    if (s.kind === 'fvg' || s.kind === 'atm' || s.kind === 'htf') return [];
     if (s.kind === 'ichimoku') {
       return [
         `${s.id}:tenkan`,
@@ -2908,6 +3049,7 @@ export class PriceChart {
         }
         case 'fvg':
         case 'atm':
+        case 'htf':
           break;
         case 'donchian': {
           const r = donchian(bars, s.period ?? 20);
@@ -3022,7 +3164,31 @@ export class PriceChart {
       atmOn && this.barSeconds <= 1800
         ? atmSessions(bars, this.indicatorAgg.utcOffsetMinutes ?? 0)
         : [];
-    if ((this.fvgZones.length || this.atmList.length) && !this.raf) this.loop();
+    // HTF candles: only timeframes that whole chart bars add up to.
+    const htfSettings = this.indicatorConfig.overlays.filter(
+      (o) =>
+        o.kind === 'htf' &&
+        o.visible &&
+        (HTF_MINUTES as readonly number[]).includes(o.minutes ?? 60) &&
+        (o.minutes ?? 60) * 60 > this.barSeconds &&
+        ((o.minutes ?? 60) * 60) % this.barSeconds === 0,
+    );
+    this.htfList = htfSettings.map((o) =>
+      htfCandles(bars, (o.minutes ?? 60) * 60, Math.min(o.period ?? 5, 30), this.indicatorAgg),
+    );
+    // Room right of the last bar for the candle sets.
+    const room = htfSettings.length
+      ? htfSettings.reduce(
+          (a, o) => a + Math.min(o.period ?? 5, 30) * HTF_STEP + HTF_SET_GAP,
+          HTF_PAD,
+        )
+      : 8;
+    if (room !== this.rightOffsetBars) {
+      this.rightOffsetBars = room;
+      this.timeScale().applyOptions({ rightOffset: room });
+    }
+    if ((this.fvgZones.length || this.atmList.length || this.htfList.length) && !this.raf)
+      this.loop();
 
     const paneWanted = new Set<string>();
     for (const s of this.indicatorConfig.panes) {
@@ -3252,7 +3418,9 @@ export class PriceChart {
   showRecent(bars: number): void {
     const n = this.candles.data().length;
     if (n === 0) return;
-    this.chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - bars), to: n + 5 });
+    // Local: leave room for the HTF candles right of the last bar.
+    const to = this.htfList.length ? n - 1 + this.rightOffsetBars : n + 5;
+    this.chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - bars), to });
   }
 
   destroy(): void {
