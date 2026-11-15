@@ -532,6 +532,12 @@ header.app > :last-child {
     --toast-lift: 156px;
   }
 }
+/* Wide screens: clear the ~34px bottom bar (play, next bar) by 14px. */
+@media (min-width: 900px) and (min-height: 521px) {
+  body.in-practice .toast {
+    bottom: calc(48px + env(safe-area-inset-bottom));
+  }
+}
 /* Short landscape screens: clear the one-row trade bar (32px controls + 2×4px padding +
    8px gap → ~56px measured 53) plus the 34px tab strip. Kept after the portrait rule so it
    wins on narrow + short screens. */
