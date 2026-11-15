@@ -610,9 +610,30 @@ export class PriceChart {
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
     // Capture phase, so the library never turns this wheel into a time-axis zoom.
+    container.addEventListener('wheel', this.onShiftWheel, { capture: true, passive: false });
     container.addEventListener('wheel', this.onPriceAxisWheel, { capture: true, passive: false });
     this.overlay.addEventListener('wheel', this.onOverlayWheel, { passive: false });
   }
+
+  /**
+   * Local: Shift + wheel pans the time axis like TradingView: wheel up moves toward newer
+   * bars (right), wheel down toward older bars (left).
+   */
+  private readonly onShiftWheel = (e: WheelEvent): void => {
+    if (!e.shiftKey) return;
+    // Browsers often turn Shift + wheel into a horizontal delta.
+    const raw = e.deltaY || e.deltaX;
+    if (raw === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? raw * 33 : raw;
+    const ts = this.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    const visible = range ? range.to - range.from : 100;
+    // One wheel notch (about 100px) moves a tenth of the visible bars.
+    const bars = (-delta / 100) * Math.max(1, visible / 10);
+    ts.scrollToPosition(ts.scrollPosition() + bars, false);
+  };
 
   /** A wheel over a drawing or its text still zooms the chart: hand it to the chart below. */
   private readonly onOverlayWheel = (e: WheelEvent): void => {
