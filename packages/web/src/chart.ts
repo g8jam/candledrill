@@ -347,6 +347,8 @@ function remainingText(sec: number): string {
 export const CE_LEVELS = [1, 0.5, 0] as const;
 /** 1/8 levels, p1 = 1 and p2 = 0. */
 export const EIGHTH_LEVELS = [1, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0] as const;
+/** The 1/8 tool's 50% level stands out in red. */
+const EIGHTH_MID_COLOR = '#f23645';
 
 /** Price, tick, bar and percent distance between two anchors (measure tool label). */
 export function measureText(
@@ -1753,13 +1755,23 @@ export class PriceChart {
             const price = roundToTick(d.p2 + (d.p1 - d.p2) * lv, this.tick);
             const y = this.yOf(price);
             if (y === null) continue;
-            nodes.push(svg('line', { x1: left, y1: y, x2: plotW, y2: y, stroke: color }));
+            const c = lv === 0.5 ? EIGHTH_MID_COLOR : color;
+            nodes.push(
+              svg('line', {
+                x1: left,
+                y1: y,
+                x2: plotW,
+                y2: y,
+                stroke: c,
+                'stroke-dasharray': '6 4',
+              }),
+            );
             const label = svg('text', {
               x: left - 8,
               y: y + 4,
               'font-size': '12px',
               'text-anchor': 'end',
-              style: `fill: ${color}; stroke: none`,
+              style: `fill: ${c}; stroke: none`,
               'data-kind': 'eighth-level',
             });
             label.textContent = `${lv} (${price.toLocaleString('en-US', { minimumFractionDigits: dpv, maximumFractionDigits: dpv })})`;
