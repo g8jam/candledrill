@@ -1953,7 +1953,7 @@ export class PriceChart {
             accent,
             nodes,
             hit,
-            { 'stroke-dasharray': '6 8', 'data-kind': 'rect-mid' },
+            { 'stroke-dasharray': '6 4', 'data-kind': 'rect-mid' },
           );
         handle(d, 'p1', x1, y1);
         handle(d, 'p2', x2, y2);
