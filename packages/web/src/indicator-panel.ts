@@ -50,6 +50,7 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   fvg: 'ind.fvg',
   atm: 'ind.atm',
   htf: 'ind.htf',
+  rthgap: 'ind.rthgap',
   rsi: 'ind.rsi',
   macd: 'ind.macd',
   atr: 'ind.atr',

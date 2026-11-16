@@ -348,3 +348,4 @@ export {
 export { fvg, type FvgZone } from './fvg.js';
 export { atmSessions, ATM_WINDOWS, type AtmSession, type AtmWindow } from './atm.js';
 export { htfBucketStart, htfCandles, type HtfImbalance, type HtfSet } from './htf.js';
+export { rthGap, type RthGap } from './rth-gap.js';

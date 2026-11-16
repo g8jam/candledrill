@@ -28,12 +28,14 @@ import {
   atmSessions,
   fvg,
   htfCandles,
+  rthGap,
   roundToTick,
   tickDecimals,
   type AtmSession,
   type Bar,
   type FvgZone,
   type HtfSet,
+  type RthGap,
 } from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
@@ -447,6 +449,8 @@ export class PriceChart {
   private fvgColor = '#5b9cf6';
   private atmList: AtmSession[] = [];
   private htfList: HtfSet[] = [];
+  private rthGapData: RthGap | null = null;
+  private rthGapColor = '#787b86';
   private rightOffsetBars = 8;
   private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
   private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
@@ -1072,6 +1076,7 @@ export class PriceChart {
         this.fvgZones.length ||
         this.atmList.length ||
         this.htfList.length ||
+        this.rthGapData ||
         this.orderLineSpecs.some((l) => l.orderId !== undefined)
       )
         this.loop();
@@ -1282,6 +1287,39 @@ export class PriceChart {
     return out;
   }
 
+  /** Pixel shape of the newest RTH opening gap: close (1), 50% and open (0). */
+  private rthGapShape() {
+    const g = this.rthGapData;
+    if (!g) return null;
+    const ts = this.timeScale();
+    const [xc, xo] = [g.closeIndex, g.openIndex].map((i) => {
+      const v = ts.logicalToCoordinate(i as Logical);
+      return v === null ? null : Math.round(v);
+    });
+    const mid = roundToTick((g.close + g.open) / 2, this.tick);
+    const [yc, ym, yo] = [g.close, mid, g.open].map((p) => {
+      const v = this.yOf(p);
+      return v === null ? null : Math.round(v);
+    });
+    if (xc == null || xo == null || yc == null || ym == null || yo == null) return null;
+    const dp = tickDecimals(this.tick);
+    const fmt = (p: number) =>
+      p.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    return {
+      xc,
+      xo,
+      yc,
+      levels: [
+        { y: yc, text: `1 (${fmt(g.close)})` },
+        { y: ym, text: `50% (${fmt(mid)})` },
+        { y: yo, text: `0 (${fmt(g.open)})` },
+      ],
+      yo,
+      top: Math.min(yc, yo),
+      date: g.date,
+    };
+  }
+
   private timeScale() {
     return this.chart.timeScale();
   }
@@ -1306,10 +1344,11 @@ export class PriceChart {
     const fvgRects = this.fvgRects();
     const atm = this.atmShapes();
     const htf = this.htfShapes();
+    const gap = this.rthGapShape();
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}|${JSON.stringify(htf)}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}|${JSON.stringify(htf)}|${JSON.stringify(gap)}|${this.rthGapColor}`;
     // Mouse moves only change the crosshair / rubber-band layer; keep the rest as is.
     if (sig === this.overlaySig) {
       this.renderDynamic(plotW);
@@ -1374,6 +1413,50 @@ export class PriceChart {
         text(a.hx1, a.yh - 4, a.hiText),
         text(a.lx1, a.yl + 12, a.loText),
       );
+    }
+    if (gap) {
+      const quiet = { 'pointer-events': 'none' };
+      const color = this.rthGapColor;
+      const text = (x: number, y: number, content: string, anchor: string, kind: string) => {
+        const node = svg('text', {
+          x,
+          y,
+          'font-size': '12px',
+          'text-anchor': anchor,
+          style: `fill: ${color}; stroke: none`,
+          'data-kind': kind,
+          ...quiet,
+        });
+        node.textContent = content;
+        return node;
+      };
+      nodes.push(
+        svg('line', {
+          x1: gap.xc,
+          y1: gap.yc,
+          x2: gap.xo,
+          y2: gap.yo,
+          stroke: color,
+          'stroke-dasharray': '5 4',
+          ...quiet,
+        }),
+      );
+      for (const lv of gap.levels) {
+        const textW = lv.text.length * 7;
+        nodes.push(
+          svg('line', {
+            x1: gap.xo,
+            y1: lv.y,
+            x2: Math.max(gap.xo, plotW - textW - 10),
+            y2: lv.y,
+            stroke: color,
+            'data-kind': 'rthgap',
+            ...quiet,
+          }),
+          text(plotW - 4, lv.y + 4, lv.text, 'end', 'rthgap-level'),
+        );
+      }
+      nodes.push(text(gap.xo + 4, gap.top - 6, gap.date, 'start', 'rthgap-date'));
     }
     for (const set of htf) {
       const quiet = { 'pointer-events': 'none' };
@@ -3018,7 +3101,7 @@ export class PriceChart {
       return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
     }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
-    if (s.kind === 'fvg' || s.kind === 'atm' || s.kind === 'htf') return [];
+    if (s.kind === 'fvg' || s.kind === 'atm' || s.kind === 'htf' || s.kind === 'rthgap') return [];
     if (s.kind === 'ichimoku') {
       return [
         `${s.id}:tenkan`,
@@ -3100,6 +3183,7 @@ export class PriceChart {
         case 'fvg':
         case 'atm':
         case 'htf':
+        case 'rthgap':
           break;
         case 'donchian': {
           const r = donchian(bars, s.period ?? 20);
@@ -3214,6 +3298,13 @@ export class PriceChart {
       atmOn && this.barSeconds <= 1800
         ? atmSessions(bars, this.indicatorAgg.utcOffsetMinutes ?? 0)
         : [];
+    // RTH opening gap: needs bars that end on the 16:15 New York close (15 min or less).
+    const gapSetting = this.indicatorConfig.overlays.find((o) => o.kind === 'rthgap' && o.visible);
+    this.rthGapData =
+      gapSetting && this.barSeconds <= 900
+        ? rthGap(bars, this.indicatorAgg.utcOffsetMinutes ?? 0)
+        : null;
+    this.rthGapColor = gapSetting?.color ?? this.rthGapColor;
     // HTF candles: only timeframes that whole chart bars add up to.
     const htfSettings = this.indicatorConfig.overlays.filter(
       (o) =>
@@ -3237,7 +3328,10 @@ export class PriceChart {
       this.rightOffsetBars = room;
       this.timeScale().applyOptions({ rightOffset: room });
     }
-    if ((this.fvgZones.length || this.atmList.length || this.htfList.length) && !this.raf)
+    if (
+      (this.fvgZones.length || this.atmList.length || this.htfList.length || this.rthGapData) &&
+      !this.raf
+    )
       this.loop();
 
     const paneWanted = new Set<string>();

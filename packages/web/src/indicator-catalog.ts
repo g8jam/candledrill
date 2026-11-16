@@ -73,6 +73,12 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['htf', 'higher timeframe', 'candles', 'ict', 'fadi', '高週期', 'k線'],
     singleton: false,
   },
+  {
+    kind: 'rthgap',
+    category: 'session',
+    aliases: ['rth', 'org', 'opening range gap', 'gap', 'ce', '缺口', '開盤'],
+    singleton: true,
+  },
   { kind: 'rsi', category: 'momentum', aliases: ['rsi', 'relative strength'], singleton: false },
   { kind: 'macd', category: 'momentum', aliases: ['macd'], singleton: false },
   {

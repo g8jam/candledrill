@@ -232,6 +232,7 @@ export const ko: Record<MessageKey, string> = {
   'ind.fvg': 'FVG',
   'ind.atm': 'ATM 아시아/도쿄',
   'ind.htf': 'HTF 상위 캔들 (ICT)',
+  'ind.rthgap': 'RTH ORG GAP',
   'ind.htfTf': '타임프레임',
   'ind.htfCount': '개수',
   'ind.stochastic': '스토캐스틱',

@@ -235,6 +235,7 @@ export const ja: Record<MessageKey, string> = {
   'ind.fvg': 'FVG',
   'ind.atm': 'ATM アジア／東京',
   'ind.htf': 'HTF 上位足ローソク（ICT）',
+  'ind.rthgap': 'RTH ORG GAP',
   'ind.htfTf': '時間足',
   'ind.htfCount': '本数',
   'ind.stochastic': 'ストキャスティクス',
