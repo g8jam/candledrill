@@ -993,6 +993,7 @@ export class PracticeView {
       channel: 'v1.toolChannel',
       fib: 'v1.toolFib',
       ce: 'v1.toolCe',
+      eighth: 'v1.toolEighth',
       measure: 'v1.toolMeasure',
       rect: 'pr.rect',
       text: 'pr.textTool',
@@ -1302,6 +1303,7 @@ export class PracticeView {
       this.drawMode === 'ray' ||
       this.drawMode === 'fib' ||
       this.drawMode === 'ce' ||
+      this.drawMode === 'eighth' ||
       this.drawMode === 'measure' ||
       this.drawMode === 'channel' ||
       this.drawMode === 'prange'

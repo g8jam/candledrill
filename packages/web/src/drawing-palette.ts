@@ -33,6 +33,7 @@ export type PaletteTool =
   | 'channel'
   | 'fib'
   | 'ce'
+  | 'eighth'
   | 'measure'
   | 'prange'
   | 'rect'
@@ -69,6 +70,7 @@ const TOOLS: { key: Exclude<PaletteTool, null>; i18n: MessageKey }[] = [
   { key: 'channel', i18n: 'v1.toolChannel' },
   { key: 'fib', i18n: 'v1.toolFib' },
   { key: 'ce', i18n: 'v1.toolCe' },
+  { key: 'eighth', i18n: 'v1.toolEighth' },
   { key: 'measure', i18n: 'v1.toolMeasure' },
   { key: 'rect', i18n: 'pr.rect' },
   { key: 'prange', i18n: 'pr.prange' },

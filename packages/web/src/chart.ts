@@ -204,6 +204,7 @@ export type Drawing =
   | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'fib'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'ce'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'eighth'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'measure'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'channel';
@@ -342,6 +343,8 @@ function remainingText(sec: number): string {
 }
 /** CE price levels, extended to the price axis. */
 export const CE_LEVELS = [1, 0.5, 0] as const;
+/** 1/8 levels, p1 = 1 and p2 = 0. */
+export const EIGHTH_LEVELS = [1, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0] as const;
 
 /** Price, tick, bar and percent distance between two anchors (measure tool label). */
 export function measureText(
@@ -1497,6 +1500,7 @@ export class PriceChart {
             d.kind === 'prange' ||
             d.kind === 'fib' ||
             d.kind === 'ce' ||
+            d.kind === 'eighth' ||
             d.kind === 'channel') &&
           a != null &&
           b != null &&
@@ -1587,6 +1591,7 @@ export class PriceChart {
         d.kind === 'vline' ||
         d.kind === 'fib' ||
         d.kind === 'ce' ||
+        d.kind === 'eighth' ||
         d.kind === 'measure' ||
         d.kind === 'channel'
       ) {
@@ -1654,6 +1659,29 @@ export class PriceChart {
                 ? y1 + dy * k
                 : y1 - (dy / dx) * x1;
           nodes.push(svg('line', { x1, y1, x2: ex, y2: ey, stroke: color, 'stroke-width': 2 }));
+          handle(d, 'p1', x1, y1);
+          handle(d, 'p2', x2, y2);
+        } else if (d.kind === 'eighth') {
+          // 1/8: "level (price)" left of the anchors, lines extended to the price axis.
+          const left = Math.min(x1, x2);
+          const dpv = tickDecimals(this.tick);
+          nodes.push(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-dasharray': '5 4' }));
+          for (const lv of EIGHTH_LEVELS) {
+            const price = roundToTick(d.p2 + (d.p1 - d.p2) * lv, this.tick);
+            const y = this.yOf(price);
+            if (y === null) continue;
+            nodes.push(svg('line', { x1: left, y1: y, x2: plotW, y2: y, stroke: color }));
+            const label = svg('text', {
+              x: left - 8,
+              y: y + 4,
+              'font-size': '12px',
+              'text-anchor': 'end',
+              style: `fill: ${color}; stroke: none`,
+              'data-kind': 'eighth-level',
+            });
+            label.textContent = `${lv} (${price.toLocaleString('en-US', { minimumFractionDigits: dpv, maximumFractionDigits: dpv })})`;
+            nodes.push(label);
+          }
           handle(d, 'p1', x1, y1);
           handle(d, 'p2', x2, y2);
         } else if (d.kind === 'fib' || d.kind === 'ce') {
@@ -2304,6 +2332,7 @@ export class PriceChart {
       d.kind === 'vline' ||
       d.kind === 'fib' ||
       d.kind === 'ce' ||
+      d.kind === 'eighth' ||
       d.kind === 'measure' ||
       d.kind === 'channel' ||
       d.kind === 'prange'
