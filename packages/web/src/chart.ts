@@ -618,6 +618,8 @@ export class PriceChart {
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel'])
+      window.addEventListener(type, this.onTouchPointer as EventListener, true);
     // Capture phase, so the library never turns this wheel into a time-axis zoom.
     container.addEventListener('wheel', this.onShiftWheel, { capture: true, passive: false });
     container.addEventListener('wheel', this.onPriceAxisWheel, { capture: true, passive: false });
@@ -729,6 +731,19 @@ export class PriceChart {
   }
 
   /** Track Shift so the trendline rubber-band turns horizontal without a mouse move. */
+  /** Fingers on the screen; a second one means pan / pinch, never a drawing drag. */
+  private readonly touchPointers = new Set<number>();
+  private cancelDrag: (() => void) | null = null;
+  private readonly onTouchPointer = (e: PointerEvent): void => {
+    if (e.pointerType !== 'touch') return;
+    if (e.type !== 'pointerdown') {
+      this.touchPointers.delete(e.pointerId);
+      return;
+    }
+    this.touchPointers.add(e.pointerId);
+    if (this.touchPointers.size > 1) this.cancelDrag?.();
+  };
+
   private readonly onShiftKey = (e: KeyboardEvent): void => {
     if (e.key !== 'Shift' || this.shiftDown === (e.type === 'keydown')) return;
     this.shiftDown = e.type === 'keydown';
@@ -2281,6 +2296,8 @@ export class PriceChart {
   private readonly clipId = `clip-${Math.random().toString(36).slice(2)}`;
 
   private startDrag(ev: PointerEvent, d: Drawing, part: DragPart): void {
+    // A finger landing on a drawing during a two-finger gesture leaves the drawing alone.
+    if (ev.pointerType === 'touch' && this.touchPointers.size > 1) return;
     ev.stopPropagation();
     this.selected = d.id;
     this.syncStyleBar();
@@ -2292,6 +2309,7 @@ export class PriceChart {
     this.overlay.classList.add('dragging');
     let moved = false;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== ev.pointerId) return;
       const t = this.timeAt(e.clientX - rect.left);
       const p = this.priceAt(e.clientY - rect.top, e.clientX - rect.left);
       if (t === null || p === null || !this.drag) return;
@@ -2312,8 +2330,9 @@ export class PriceChart {
       this.overlaySig = '';
       this.renderOverlay();
     };
-    const up = () => {
+    const end = () => {
       this.dragCursor = null;
+      this.cancelDrag = null;
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       this.overlay.classList.remove('dragging');
@@ -2321,10 +2340,20 @@ export class PriceChart {
       this.drag = null;
       this.overlaySig = '';
       this.renderOverlay();
+      return done;
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== ev.pointerId) return;
+      const done = end();
       if (moved && done) {
         this.renderPriceLines();
         this.editHandler?.(done);
       }
+    };
+    // A second finger turns the gesture into pan / pinch: put the drawing back.
+    this.cancelDrag = () => {
+      this.drawings = this.drawings.map((x) => (x.id === d.id ? d : x));
+      end();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -3583,6 +3612,8 @@ export class PriceChart {
     this.clearBarContextHold();
     window.removeEventListener('keydown', this.onShiftKey);
     window.removeEventListener('keyup', this.onShiftKey);
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel'])
+      window.removeEventListener(type, this.onTouchPointer as EventListener, true);
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.overlay.remove();
