@@ -1721,10 +1721,10 @@ export class PriceChart {
           b != null &&
           c != null &&
           e != null
-        ) {
-          if (extendsRight(d)) hitRect(d, Math.min(a, c), b, plotW, e);
-          else hitRect(d, a, b, c, e);
-        }
+        )
+          // Only the box between the anchors grabs the drawing; the extended part
+          // stays free for panning the chart.
+          hitRect(d, a, b, c, e);
       }
       if (d.kind === 'hline') {
         handle(d, 'price', plotW - 24, p[0]!);
