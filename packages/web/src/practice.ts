@@ -42,6 +42,7 @@ import {
   type MarkerSpec,
   type PriceLineSpec,
   type PositionLabels,
+  drawingEnd,
   EXTENDABLE_KINDS,
 } from './chart.js';
 import { IndicatorPanel } from './indicator-panel.js';
@@ -985,6 +986,22 @@ export class PracticeView {
     );
   }
 
+  /** Remove drawings whose last point is more than three days before the current bar. */
+  private clearOlderDrawings(): void {
+    const cutoff = this.cursorTime - 3 * 86_400;
+    const keep = this.drawings.filter((d) => {
+      const e = drawingEnd(d);
+      return e === null || e >= cutoff;
+    });
+    const n = this.drawings.length - keep.length;
+    if (n === 0) {
+      toast(t('pr.clearOlderNone'));
+      return;
+    }
+    if (!confirm(t('pr.clearOlderConfirm', { n }))) return;
+    void this.saveDrawings(keep);
+  }
+
   private drawingName(d: Drawing): string {
     const names: Partial<Record<Drawing['kind'], MessageKey>> = {
       hline: 'pr.hline',
@@ -1098,6 +1115,7 @@ export class PracticeView {
     const palette = new DrawingPalette(body, {
       select: (tool) => this.setDrawMode(tool),
       clear: () => void this.saveDrawings([]),
+      clearOlder: () => this.clearOlderDrawings(),
     });
     this.palettes.push(palette);
     const pane: ChartPane = {

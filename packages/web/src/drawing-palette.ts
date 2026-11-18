@@ -70,6 +70,8 @@ export type PaletteTool =
 export interface DrawingPaletteHooks {
   select: (tool: PaletteTool) => void;
   clear: () => void;
+  /** Clear drawings that end more than three days before the current bar. */
+  clearOlder: () => void;
 }
 
 export const PALETTE_EXPANDED_KEY = 'candledrill.paletteExpanded';
@@ -240,11 +242,42 @@ export class DrawingPalette {
       },
       t('pr.clearDrawings'),
     );
-    clear.addEventListener('click', () => {
+    // Clear opens two choices: everything, or drawings older than three days.
+    const choice = (key: MessageKey, testid: string, run: () => void) => {
+      const b = el(
+        'button',
+        {
+          type: 'button',
+          class: 'small ghost',
+          'data-testid': testid,
+          'data-i18n': key,
+          hidden: '',
+        },
+        t(key),
+      );
+      b.addEventListener('click', () => {
+        clearAll.hidden = true;
+        clearOld.hidden = true;
+        clear.setAttribute('aria-expanded', 'false');
+        run();
+      });
+      return b;
+    };
+    const clearAll = choice('pr.clearAll', 'drawing-palette-clear-all', () => {
       if (!confirm(t('pr.clearDrawingsConfirm'))) return;
       this.hooks.clear();
     });
-    this.toolsEl.append(clear);
+    const clearOld = choice('pr.clearOlder3d', 'drawing-palette-clear-old', () =>
+      this.hooks.clearOlder(),
+    );
+    clear.setAttribute('aria-expanded', 'false');
+    clear.addEventListener('click', () => {
+      const open = clearAll.hidden;
+      clearAll.hidden = !open;
+      clearOld.hidden = !open;
+      clear.setAttribute('aria-expanded', String(open));
+    });
+    this.toolsEl.append(clear, clearAll, clearOld);
 
     this.toggleBtn.addEventListener('click', () => this.setExpanded(!this.expanded));
     this.root.append(this.toggleBtn, this.toolsEl);

@@ -380,6 +380,13 @@ export const EXTENDABLE_KINDS: ReadonlySet<Drawing['kind']> = new Set([
   'ce',
   'eighth',
 ]);
+/** Time of a drawing's last point; null for a horizontal line, which has none. */
+export function drawingEnd(d: Drawing): number | null {
+  if (d.kind === 'hline') return null;
+  if (d.kind === 'text') return d.t;
+  if (d.kind === 'freehand') return Math.max(...d.points.map((p) => p.t));
+  return Math.max(d.t1, d.t2);
+}
 /** Whether a drawing runs to the right edge; CE and 1/8 did before the option existed. */
 export function extendsRight(d: Drawing): boolean {
   if (d.kind === 'ce' || d.kind === 'eighth') return d.extend ?? true;
