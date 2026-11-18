@@ -196,7 +196,11 @@ export function drawingIssues(d: unknown): string[] {
     } else if (TWO_POINT_KINDS.has(x.kind as string)) {
       // A trendline (or a rectangle's middle line) may also carry text.
       const tlineText = (x.kind === 'tline' || x.kind === 'rect') && x.text !== undefined;
-      const keys = Object.keys(x).filter((k) => k !== 'color' && !(tlineText && k === 'text'));
+      // Rectangle, Fib, CE and 1/8 may extend to the right edge.
+      const extendable = ['rect', 'fib', 'ce', 'eighth'].includes(x.kind as string);
+      const keys = Object.keys(x).filter(
+        (k) => k !== 'color' && !(tlineText && k === 'text') && !(extendable && k === 'extend'),
+      );
       if (
         keys.length !== 6 ||
         !id(x.id) ||
@@ -205,6 +209,7 @@ export function drawingIssues(d: unknown): string[] {
         !isPos(x.p1) ||
         !isPos(x.p2) ||
         (x.color !== undefined && typeof x.color !== 'string') ||
+        (x.extend !== undefined && typeof x.extend !== 'boolean') ||
         (tlineText && (typeof x.text !== 'string' || x.text.length < 1 || x.text.length > 200))
       )
         out.push(`drawings[${i}]: invalid`);

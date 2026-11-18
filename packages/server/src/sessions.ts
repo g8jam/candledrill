@@ -728,6 +728,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                       t2: { type: 'integer' },
                       p2: { type: 'number', exclusiveMinimum: 0 },
                       text: { type: 'string', minLength: 1, maxLength: 200 },
+                      extend: { type: 'boolean' },
                     },
                   },
                   {
@@ -757,6 +758,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                       t2: { type: 'integer' },
                       p2: { type: 'number', exclusiveMinimum: 0 },
                       color: { type: 'string', maxLength: 32 },
+                      extend: { type: 'boolean' },
                     },
                   },
                   {

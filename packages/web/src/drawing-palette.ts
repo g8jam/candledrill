@@ -25,6 +25,29 @@ export const HorizontalLock = {
   },
 };
 
+const EXTEND_KEY = 'candledrill.extendRight';
+
+/** Palette toggle: new rectangles, Fib, CE and 1/8 extend to the right edge. Remembered. */
+export const ExtendRight = {
+  on: (() => {
+    try {
+      return localStorage.getItem(EXTEND_KEY) === '1';
+    } catch {
+      return false;
+    }
+  })(),
+  listeners: new Set<() => void>(),
+  toggle(): void {
+    this.on = !this.on;
+    try {
+      localStorage.setItem(EXTEND_KEY, this.on ? '1' : '0');
+    } catch {
+      // Preference only.
+    }
+    for (const f of this.listeners) f();
+  },
+};
+
 export type PaletteTool =
   | 'hline'
   | 'tline'
@@ -90,6 +113,7 @@ export class DrawingPalette {
   private expanded: boolean;
   private offSettings: () => void = () => undefined;
   private syncHLock: () => void = () => undefined;
+  private syncExtend: () => void = () => undefined;
 
   constructor(
     container: HTMLElement,
@@ -185,6 +209,24 @@ export class DrawingPalette {
     hLockBtn.addEventListener('click', () => HorizontalLock.toggle());
     this.toolsEl.append(hLockBtn);
 
+    const extendBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small',
+        title: t('pr.extendRight'),
+        'data-testid': 'palette-extend',
+        'data-i18n': 'pr.extendRight',
+        'data-i18n-title': 'pr.extendRight',
+      },
+      t('pr.extendRight'),
+    );
+    this.syncExtend = () => extendBtn.setAttribute('aria-pressed', String(ExtendRight.on));
+    this.syncExtend();
+    ExtendRight.listeners.add(this.syncExtend);
+    extendBtn.addEventListener('click', () => ExtendRight.toggle());
+    this.toolsEl.append(extendBtn);
+
     const clear = el(
       'button',
       {
@@ -273,6 +315,7 @@ export class DrawingPalette {
   destroy(): void {
     this.offSettings();
     HorizontalLock.listeners.delete(this.syncHLock);
+    ExtendRight.listeners.delete(this.syncExtend);
     this.root.remove();
   }
 }

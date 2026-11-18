@@ -192,6 +192,7 @@ export const ko: Record<MessageKey, string> = {
   'pr.hideDrawings': '그림 숨기기',
   'pr.scrollLatest': '최신 봉으로 이동',
   'pr.hLock': '수평',
+  'pr.extendRight': '연장',
   'pr.touchMoveStart': '드래그해 커서를 시작점으로',
   'pr.touchTapFirst': '탭해 첫 번째 점 설정',
   'pr.touchMoveNext': '드래그해 커서를 다음 점으로',

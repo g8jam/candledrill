@@ -88,7 +88,7 @@ import { t, type MessageKey } from './i18n.js';
 import { fromDisplayWall, toDisplayWall } from './display-time.js';
 import { getSettings } from './settings.js';
 import { el } from './format.js';
-import { HorizontalLock } from './drawing-palette.js';
+import { ExtendRight, HorizontalLock } from './drawing-palette.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
 export function tradeWindow(
@@ -204,9 +204,36 @@ export type Drawing =
     }
   | { kind: 'ray'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
-  | { kind: 'fib'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
-  | { kind: 'ce'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
-  | { kind: 'eighth'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | {
+      kind: 'fib';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      extend?: boolean;
+    }
+  | {
+      kind: 'ce';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      extend?: boolean;
+    }
+  | {
+      kind: 'eighth';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      extend?: boolean;
+    }
   | { kind: 'measure'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'channel';
@@ -229,6 +256,7 @@ export type Drawing =
       color?: string;
       /** Optional text on the dashed 50% line, as on a trendline. */
       text?: string;
+      extend?: boolean;
     }
   | { kind: 'prange'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
@@ -345,6 +373,19 @@ function remainingText(sec: number): string {
 }
 /** CE price levels, extended to the price axis. */
 export const CE_LEVELS = [1, 0.5, 0] as const;
+/** Kinds the palette's Extend toggle applies to. */
+export const EXTENDABLE_KINDS: ReadonlySet<Drawing['kind']> = new Set([
+  'rect',
+  'fib',
+  'ce',
+  'eighth',
+]);
+/** Whether a drawing runs to the right edge; CE and 1/8 did before the option existed. */
+export function extendsRight(d: Drawing): boolean {
+  if (d.kind === 'ce' || d.kind === 'eighth') return d.extend ?? true;
+  if (d.kind === 'rect' || d.kind === 'fib') return d.extend ?? false;
+  return false;
+}
 /** 1/8 levels, p1 = 1 and p2 = 0. */
 export const EIGHTH_LEVELS = [1, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0] as const;
 /** The 1/8 tool's 50% level stands out in red. */
@@ -618,6 +659,7 @@ export class PriceChart {
     container.addEventListener('pointermove', this.onHover, true);
     container.addEventListener('pointerleave', this.onHover, true);
     window.addEventListener('keyup', this.onShiftKey);
+    ExtendRight.listeners.add(this.onExtendToggle);
     for (const type of ['pointerdown', 'pointerup', 'pointercancel'])
       window.addEventListener(type, this.onTouchPointer as EventListener, true);
     // Capture phase, so the library never turns this wheel into a time-axis zoom.
@@ -742,6 +784,17 @@ export class PriceChart {
     }
     this.touchPointers.add(e.pointerId);
     if (this.touchPointers.size > 1) this.cancelDrag?.();
+  };
+
+  /** The palette's Extend toggle also switches the selected drawing. */
+  private readonly onExtendToggle = (): void => {
+    const d = this.drawings.find((x) => x.id === this.selected);
+    if (!d || !EXTENDABLE_KINDS.has(d.kind) || this.lockedIds.has(d.id)) return;
+    const next = { ...d, extend: ExtendRight.on } as Drawing;
+    this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+    this.overlaySig = '';
+    this.renderOverlay();
+    this.editHandler?.(next);
   };
 
   private readonly onShiftKey = (e: KeyboardEvent): void => {
@@ -1606,8 +1659,10 @@ export class PriceChart {
           b != null &&
           c != null &&
           e != null
-        )
-          hitRect(d, a, b, c, e);
+        ) {
+          if (extendsRight(d)) hitRect(d, Math.min(a, c), b, plotW, e);
+          else hitRect(d, a, b, c, e);
+        }
       }
       if (d.kind === 'hline') {
         handle(d, 'price', plotW - 24, p[0]!);
@@ -1775,7 +1830,7 @@ export class PriceChart {
               svg('line', {
                 x1: left,
                 y1: y,
-                x2: plotW,
+                x2: extendsRight(d) ? plotW : Math.max(x1, x2),
                 y2: y,
                 stroke: c,
                 'stroke-dasharray': '6 8',
@@ -1800,7 +1855,8 @@ export class PriceChart {
           // (p1 = 0, p2 = 1). Both draw a dashed line between the anchors.
           const fib = d.kind === 'fib';
           const left = Math.min(x1, x2);
-          const right = fib ? Math.max(x1, x2) : plotW;
+          const ext = extendsRight(d);
+          const right = ext ? plotW : Math.max(x1, x2);
           const dpv = tickDecimals(this.tick);
           const textStyle = `fill: ${color}; stroke: none`;
           nodes.push(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-dasharray': '5 4' }));
@@ -1816,16 +1872,16 @@ export class PriceChart {
               svg('line', {
                 x1: left,
                 y1: y,
-                x2: fib ? right : Math.max(left, right - textW - 10),
+                x2: ext ? Math.max(left, right - textW - 10) : right,
                 y2: y,
                 stroke: color,
               }),
             );
             const label = svg('text', {
-              x: fib ? right + 8 : right - 4,
+              x: ext ? right - 4 : right + 8,
               y: y + 4,
               'font-size': '12px',
-              'text-anchor': fib ? 'start' : 'end',
+              'text-anchor': ext ? 'end' : 'start',
               style: textStyle,
               'data-kind': `${d.kind}-level`,
             });
@@ -1943,13 +1999,14 @@ export class PriceChart {
       } else if (d.kind === 'tline' || d.kind === 'rect') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+        const rectRight = extendsRight(d) ? plotW : Math.max(x1, x2);
         if (d.kind === 'tline') this.tlineNodes(d, x1, y1, x2, y2, accent, nodes, hit);
         else
           nodes.push(
             svg('rect', {
               x: Math.min(x1, x2),
               y: Math.min(y1, y2),
-              width: Math.abs(x2 - x1),
+              width: Math.max(0, rectRight - Math.min(x1, x2)),
               height: Math.abs(y2 - y1),
               fill: withAlpha(accent, 0.02),
               stroke: accent,
@@ -1963,7 +2020,7 @@ export class PriceChart {
             d,
             Math.min(x1, x2),
             (y1 + y2) / 2,
-            Math.max(x1, x2),
+            rectRight,
             (y1 + y2) / 2,
             accent,
             nodes,
@@ -3612,6 +3669,7 @@ export class PriceChart {
     this.clearBarContextHold();
     window.removeEventListener('keydown', this.onShiftKey);
     window.removeEventListener('keyup', this.onShiftKey);
+    ExtendRight.listeners.delete(this.onExtendToggle);
     for (const type of ['pointerdown', 'pointerup', 'pointercancel'])
       window.removeEventListener(type, this.onTouchPointer as EventListener, true);
     cancelAnimationFrame(this.raf);

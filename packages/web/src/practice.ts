@@ -42,10 +42,11 @@ import {
   type MarkerSpec,
   type PriceLineSpec,
   type PositionLabels,
+  EXTENDABLE_KINDS,
 } from './chart.js';
 import { IndicatorPanel } from './indicator-panel.js';
 import { loadIndicatorConfig, type PaneIndicatorConfig } from './indicator-prefs.js';
-import { DrawingPalette } from './drawing-palette.js';
+import { DrawingPalette, ExtendRight } from './drawing-palette.js';
 import type { PaletteTool } from './drawing-palette.js';
 import { SidePanel } from './side.js';
 import { CompletionSummary } from './summary.js';
@@ -1333,6 +1334,7 @@ export class PracticeView {
               p1: a.price,
               t2,
               p2: shift && (kind === 'tline' || kind === 'ray') ? a.price : px,
+              ...(EXTENDABLE_KINDS.has(kind) ? { extend: ExtendRight.on } : {}),
             };
       void this.saveDrawings([...this.drawings, next]);
       return;

@@ -185,6 +185,7 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.hideDrawings': '隐藏图形',
   'pr.scrollLatest': '滚动到最新K线',
   'pr.hLock': '水平',
+  'pr.extendRight': '延伸',
   'pr.touchMoveStart': '拖动以移动准星到起点',
   'pr.touchTapFirst': '点一下设定第一个点',
   'pr.touchMoveNext': '拖动以移动准星到下一点',

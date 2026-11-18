@@ -195,6 +195,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.hideDrawings': '描画を非表示',
   'pr.scrollLatest': '最新の足へ移動',
   'pr.hLock': '水平',
+  'pr.extendRight': '延長',
   'pr.touchMoveStart': 'ドラッグしてカーソルを始点へ',
   'pr.touchTapFirst': 'タップして最初の点を設定',
   'pr.touchMoveNext': 'ドラッグしてカーソルを次の点へ',
