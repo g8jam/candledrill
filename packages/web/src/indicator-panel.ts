@@ -51,6 +51,7 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   atm: 'ind.atm',
   htf: 'ind.htf',
   rthgap: 'ind.rthgap',
+  dayce: 'ind.dayce',
   rsi: 'ind.rsi',
   macd: 'ind.macd',
   atr: 'ind.atr',

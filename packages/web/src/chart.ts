@@ -29,6 +29,7 @@ import {
   fvg,
   htfCandles,
   rthGap,
+  dayCe,
   roundToTick,
   tickDecimals,
   type AtmSession,
@@ -36,6 +37,7 @@ import {
   type FvgZone,
   type HtfSet,
   type RthGap,
+  type DayLevels,
 } from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
@@ -501,6 +503,8 @@ export class PriceChart {
   private htfList: HtfSet[] = [];
   private rthGapData: RthGap | null = null;
   private rthGapColor = '#787b86';
+  private dayCeList: DayLevels[] = [];
+  private dayCeColor = '#787b86';
   private rightOffsetBars = 8;
   private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
   private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
@@ -1154,6 +1158,7 @@ export class PriceChart {
         this.atmList.length ||
         this.htfList.length ||
         this.rthGapData ||
+        this.dayCeList.length ||
         this.orderLineSpecs.some((l) => l.orderId !== undefined)
       )
         this.loop();
@@ -1365,6 +1370,27 @@ export class PriceChart {
   }
 
   /** Pixel shape of the newest RTH opening gap: close (1), 50% and open (0). */
+  /** Pixel lines of the DAY CE levels: high, CE (50%) and low of each completed day. */
+  private dayCeShapes() {
+    const ts = this.timeScale();
+    const out = [];
+    for (const d of this.dayCeList) {
+      const v = ts.logicalToCoordinate(d.startIndex as Logical);
+      if (v === null) continue;
+      const x = Math.round(v);
+      for (const [name, price, dashed] of [
+        ['high', d.high, false],
+        ['CE', roundToTick(d.mid, this.tick), true],
+        ['low', d.low, false],
+      ] as const) {
+        const y = this.yOf(price);
+        if (y === null) continue;
+        out.push({ x, y: Math.round(y), text: `${d.label} ${name}`, dashed });
+      }
+    }
+    return out;
+  }
+
   private rthGapShape() {
     const g = this.rthGapData;
     if (!g) return null;
@@ -1422,10 +1448,11 @@ export class PriceChart {
     const atm = this.atmShapes();
     const htf = this.htfShapes();
     const gap = this.rthGapShape();
+    const dayLines = this.dayCeShapes();
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}|${JSON.stringify(htf)}|${JSON.stringify(gap)}|${this.rthGapColor}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(fvgRects)}|${JSON.stringify(atm)}|${JSON.stringify(htf)}|${JSON.stringify(gap)}|${this.rthGapColor}|${JSON.stringify(dayLines)}|${this.dayCeColor}`;
     // Mouse moves only change the crosshair / rubber-band layer; keep the rest as is.
     if (sig === this.overlaySig) {
       this.renderDynamic(plotW);
@@ -1534,6 +1561,34 @@ export class PriceChart {
         );
       }
       nodes.push(text(gap.xo + 4, gap.top - 6, gap.date, 'start', 'rthgap-date'));
+    }
+    for (const l of dayLines) {
+      const quiet = { 'pointer-events': 'none' };
+      const color = this.dayCeColor;
+      const textW = l.text.length * 7;
+      nodes.push(
+        svg('line', {
+          x1: l.x,
+          y1: l.y,
+          x2: Math.max(l.x, plotW - textW - 10),
+          y2: l.y,
+          stroke: color,
+          ...(l.dashed ? { 'stroke-dasharray': '6 8' } : {}),
+          'data-kind': 'dayce',
+          ...quiet,
+        }),
+      );
+      const label = svg('text', {
+        x: plotW - 4,
+        y: l.y + 4,
+        'font-size': '12px',
+        'text-anchor': 'end',
+        style: `fill: ${color}; stroke: none`,
+        'data-kind': 'dayce-label',
+        ...quiet,
+      });
+      label.textContent = l.text;
+      nodes.push(label);
     }
     for (const set of htf) {
       const quiet = { 'pointer-events': 'none' };
@@ -3206,7 +3261,14 @@ export class PriceChart {
       return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
     }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
-    if (s.kind === 'fvg' || s.kind === 'atm' || s.kind === 'htf' || s.kind === 'rthgap') return [];
+    if (
+      s.kind === 'fvg' ||
+      s.kind === 'atm' ||
+      s.kind === 'htf' ||
+      s.kind === 'rthgap' ||
+      s.kind === 'dayce'
+    )
+      return [];
     if (s.kind === 'ichimoku') {
       return [
         `${s.id}:tenkan`,
@@ -3289,6 +3351,7 @@ export class PriceChart {
         case 'atm':
         case 'htf':
         case 'rthgap':
+        case 'dayce':
           break;
         case 'donchian': {
           const r = donchian(bars, s.period ?? 20);
@@ -3410,6 +3473,10 @@ export class PriceChart {
         ? rthGap(bars, this.indicatorAgg.utcOffsetMinutes ?? 0)
         : null;
     this.rthGapColor = gapSetting?.color ?? this.rthGapColor;
+    // DAY CE: the last three completed daily candles (intraday charts only).
+    const dayCeSetting = this.indicatorConfig.overlays.find((o) => o.kind === 'dayce' && o.visible);
+    this.dayCeList = dayCeSetting && this.barSeconds < 86_400 ? dayCe(bars, this.indicatorAgg) : [];
+    this.dayCeColor = dayCeSetting?.color ?? this.dayCeColor;
     // HTF candles: only timeframes that whole chart bars add up to.
     const htfSettings = this.indicatorConfig.overlays.filter(
       (o) =>
@@ -3434,7 +3501,11 @@ export class PriceChart {
       this.timeScale().applyOptions({ rightOffset: room });
     }
     if (
-      (this.fvgZones.length || this.atmList.length || this.htfList.length || this.rthGapData) &&
+      (this.fvgZones.length ||
+        this.atmList.length ||
+        this.htfList.length ||
+        this.rthGapData ||
+        this.dayCeList.length) &&
       !this.raf
     )
       this.loop();

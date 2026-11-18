@@ -227,6 +227,7 @@ export const zhHans: Record<MessageKey, string> = {
   'ind.atm': 'ATM 亚洲／东京时段',
   'ind.htf': 'HTF 高周期K线（ICT）',
   'ind.rthgap': 'RTH ORG GAP',
+  'ind.dayce': 'DAY CE',
   'ind.htfTf': '周期',
   'ind.htfCount': '根数',
   'ind.stochastic': '随机指标',

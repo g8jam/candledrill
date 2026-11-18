@@ -237,6 +237,7 @@ export const ja: Record<MessageKey, string> = {
   'ind.atm': 'ATM アジア／東京',
   'ind.htf': 'HTF 上位足ローソク（ICT）',
   'ind.rthgap': 'RTH ORG GAP',
+  'ind.dayce': 'DAY CE',
   'ind.htfTf': '時間足',
   'ind.htfCount': '本数',
   'ind.stochastic': 'ストキャスティクス',

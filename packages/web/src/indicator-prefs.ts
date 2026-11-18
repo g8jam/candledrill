@@ -35,7 +35,8 @@ export type OverlayKind =
   | 'fvg'
   | 'atm'
   | 'htf'
-  | 'rthgap';
+  | 'rthgap'
+  | 'dayce';
 export type PaneKind =
   | 'rsi'
   | 'macd'
@@ -157,6 +158,7 @@ type ExtraKind = Exclude<
   | 'atm'
   | 'htf'
   | 'rthgap'
+  | 'dayce'
 >;
 
 const MORE_TEMPLATES: Record<ExtraKind, IndicatorSetting> = {
@@ -258,6 +260,12 @@ const RTH_GAP_TEMPLATE: IndicatorSetting = {
   visible: true,
   color: '#787b86',
 };
+const DAY_CE_TEMPLATE: IndicatorSetting = {
+  id: 'dayce',
+  kind: 'dayce',
+  visible: true,
+  color: '#787b86',
+};
 // HTF candles: `minutes` is the higher timeframe, `period` the number of candles.
 const HTF_TEMPLATE: IndicatorSetting = {
   id: 'htf',
@@ -309,6 +317,8 @@ export function templateFor(kind: IndicatorKind): IndicatorSetting {
       return { ...HTF_TEMPLATE };
     case 'rthgap':
       return { ...RTH_GAP_TEMPLATE };
+    case 'dayce':
+      return { ...DAY_CE_TEMPLATE };
     case 'orb':
     case 'donchian':
     case 'stochastic':
@@ -342,6 +352,7 @@ function isOriginalKind(s: unknown): s is IndicatorKind {
     s === 'atm' ||
     s === 'htf' ||
     s === 'rthgap' ||
+    s === 'dayce' ||
     s === 'rsi' ||
     s === 'macd' ||
     s === 'atr' ||
@@ -377,6 +388,7 @@ export function isOverlayKind(kind: IndicatorKind): kind is OverlayKind {
     case 'atm':
     case 'htf':
     case 'rthgap':
+    case 'dayce':
       return true;
     case 'rsi':
     case 'macd':

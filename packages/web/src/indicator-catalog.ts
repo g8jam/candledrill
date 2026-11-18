@@ -79,6 +79,12 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['rth', 'org', 'opening range gap', 'gap', 'ce', '缺口', '開盤'],
     singleton: true,
   },
+  {
+    kind: 'dayce',
+    category: 'session',
+    aliases: ['day', 'daily', 'ce', 'high', 'low', 'pdh', 'pdl', '日k', '前日', '高低點'],
+    singleton: true,
+  },
   { kind: 'rsi', category: 'momentum', aliases: ['rsi', 'relative strength'], singleton: false },
   { kind: 'macd', category: 'momentum', aliases: ['macd'], singleton: false },
   {
