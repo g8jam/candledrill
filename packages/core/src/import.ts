@@ -195,7 +195,8 @@ export function drawingIssues(d: unknown): string[] {
         out.push(`drawings[${i}]: invalid`);
     } else if (TWO_POINT_KINDS.has(x.kind as string)) {
       // A trendline (or a rectangle's middle line) may also carry text.
-      const tlineText = (x.kind === 'tline' || x.kind === 'rect') && x.text !== undefined;
+      const tlineText =
+        (x.kind === 'tline' || x.kind === 'rect' || x.kind === 'ray') && x.text !== undefined;
       // Rectangle, Fib, CE and 1/8 may extend to the right edge.
       const extendable = ['rect', 'fib', 'ce', 'eighth'].includes(x.kind as string);
       const keys = Object.keys(x).filter(

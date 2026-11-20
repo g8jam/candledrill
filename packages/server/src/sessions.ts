@@ -759,6 +759,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                       p2: { type: 'number', exclusiveMinimum: 0 },
                       color: { type: 'string', maxLength: 32 },
                       extend: { type: 'boolean' },
+                      text: { type: 'string', minLength: 1, maxLength: 200 },
                     },
                   },
                   {

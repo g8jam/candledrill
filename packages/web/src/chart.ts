@@ -204,7 +204,17 @@ export type Drawing =
       /** Optional text shown in the middle of the line, as in TradingView. */
       text?: string;
     }
-  | { kind: 'ray'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | {
+      kind: 'ray';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      color?: string;
+      /** Optional text shown at the ray's right end. */
+      text?: string;
+    }
   | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'fib';
@@ -1876,6 +1886,25 @@ export class PriceChart {
                 ? y1 + dy * k
                 : y1 - (dy / dx) * x1;
           nodes.push(svg('line', { x1, y1, x2: ex, y2: ey, stroke: color, 'stroke-width': 2 }));
+          // Text sits at the ray's end, right-aligned at the plot edge, just above the line.
+          const editable = !this.lockedIds.has(d.id);
+          const placeholder = !d.text && editable && this.selected === d.id;
+          const label = d.text ?? (placeholder ? `+ ${t('pr.addText')}` : '');
+          if (label) {
+            const right = ex >= x1;
+            const tx = svg('text', {
+              x: right ? ex - 4 : ex + 4,
+              y: ey - 6,
+              fill: color,
+              'font-size': '13px',
+              'text-anchor': right ? 'end' : 'start',
+              class: placeholder ? 'tline-add' : 'tline-text',
+              'data-testid': `ray-text-${d.id}`,
+            });
+            tx.textContent = label;
+            const editX = right ? ex - 100 : ex + 100;
+            this.wireLineText(d, tx, placeholder, editable, editX, ey - 6, nodes, hit);
+          }
           handle(d, 'p1', x1, y1);
           handle(d, 'p2', x2, y2);
         } else if (d.kind === 'eighth') {
@@ -3127,6 +3156,20 @@ export class PriceChart {
       'data-testid': `tline-text-${d.id}`,
     });
     tx.textContent = label;
+    this.wireLineText(d, tx, placeholder, editable, mx, my, nodes, hit);
+  }
+
+  /** Line text: the placeholder edits on click, real text on double-click (where at x, y). */
+  private wireLineText(
+    d: Extract<Drawing, { kind: 'tline' | 'rect' | 'ray' }>,
+    tx: SVGElement,
+    placeholder: boolean,
+    editable: boolean,
+    mx: number,
+    my: number,
+    nodes: SVGElement[],
+    hit: (d: Drawing, node: SVGElement) => void,
+  ): void {
     if (placeholder) {
       tx.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       tx.addEventListener('click', (ev) => {
@@ -3160,7 +3203,7 @@ export class PriceChart {
 
   /** Small inline input over the line's middle; Enter or leaving it saves, Esc cancels. */
   private editTlineText(
-    d: Extract<Drawing, { kind: 'tline' | 'rect' }>,
+    d: Extract<Drawing, { kind: 'tline' | 'rect' | 'ray' }>,
     x: number,
     y: number,
   ): void {
