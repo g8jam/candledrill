@@ -125,8 +125,8 @@ export function resolvePracticeTimeframe(
  * source when it is shorter than a practice bar), at or above the bound practice
  * timeframe, and only where the source divides the pane so buckets stay aligned.
  */
-/** Chart menu choices: the standard practice timeframes plus 3m, 30m and 4h (chart only). */
-const CHART_TIMEFRAMES: readonly number[] = [60, 180, 300, 900, 1800, 3600, 14400, 86400];
+/** Chart menu choices: the standard practice timeframes plus 2m, 3m, 30m and 4h (chart only). */
+const CHART_TIMEFRAMES: readonly number[] = [60, 120, 180, 300, 900, 1800, 3600, 14400, 86400];
 
 export function practiceChartTimeframes(
   sourceSeconds: number,

@@ -245,10 +245,14 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
     expect(defaultPracticeTimeframe(150)).toBe(900);
     expect(defaultPracticeTimeframe(600)).toBe(3600);
     expect(defaultPracticeTimeframe(14400)).toBe(86400);
-    expect(practiceChartTimeframes(20, 60)).toEqual([60, 180, 300, 900, 1800, 3600, 14400, 86400]);
+    expect(practiceChartTimeframes(20, 60)).toEqual([
+      60, 120, 180, 300, 900, 1800, 3600, 14400, 86400,
+    ]);
     expect(practiceChartTimeframes(100, 300)).toEqual([300, 900, 1800, 3600, 14400, 86400]);
     expect(practiceChartTimeframes(300, 900)).toEqual([900, 1800, 3600, 14400, 86400]);
-    expect(practiceChartTimeframes(10, 60)).toEqual([60, 180, 300, 900, 1800, 3600, 14400, 86400]);
+    expect(practiceChartTimeframes(10, 60)).toEqual([
+      60, 120, 180, 300, 900, 1800, 3600, 14400, 86400,
+    ]);
     expect(practiceChartTimeframes(50, 300)).toEqual([300, 900, 1800, 3600, 14400, 86400]);
     expect(practiceChartTimeframes(150, 900)).toEqual([900, 1800, 3600, 14400, 86400]);
     for (const list of [
